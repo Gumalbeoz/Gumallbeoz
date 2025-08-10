@@ -1,0 +1,143 @@
+local ScreenGui = Instance.new("ScreenGui")
+local ImageButton = Instance.new("ImageButton")
+local UICorner = Instance.new("UICorner")
+
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+ImageButton.Parent = ScreenGui
+ImageButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ImageButton.BorderSizePixel = 0
+ImageButton.Position = UDim2.new(0.10615778, 0, 0.16217947, 0)
+ImageButton.Size = UDim2.new(0, 40, 0, 40)
+ImageButton.Draggable = true
+ImageButton.Image = "http://www.roblox.com/asset/?id=73051754678258"
+
+UICorner.CornerRadius = UDim.new(1, 10) 
+UICorner.Parent = ImageButton
+
+ImageButton.MouseButton1Down:Connect(function()
+    game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.End, false, game)
+end)
+
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+repeat wait() until game:IsLoaded()
+local Window = Fluent:CreateWindow({
+    Title = "Gumal Tổng Hợp",
+    SubTitle = "Blox Fruit",
+    TabWidth = 157,
+    Size = UDim2.fromOffset(500, 300),
+    Acrylic = true,
+    Theme = "Yellow",
+    MinimizeKey = Enum.KeyCode.End
+})
+local Tabs = {
+        Main0=Window:AddTab({ Title="Thông Tin" }),
+        Main1=Window:AddTab({ Title="Script Farm" }),
+        Main2=Window:AddTab({ Title="Pull Lever" }),        
+        Main3=Window:AddTab({ Title="Auto Bounty" }),
+        Main4=Window:AddTab({ Title="Gag" }),
+}
+    Tabs.Main0:AddButton({
+    Title = "Discord",
+    Description = "Mango-Sigma",
+    Callback = function()
+        setclipboard("https://discord.gg/RYKcdEtD")
+    end
+})
+
+    Tabs.Main0:AddButton({
+    Title = "Youtuber",
+    Description = "gumall",
+    Callback = function()
+        setclipboard("https://www.youtube.com/@gumallbeoz")
+    end
+})
+
+    Tabs.Main1:AddButton({
+    Title="Redz Hub",
+    Description="",
+    Callback=function()
+      loadstring(game:HttpGet("https://raw.githubusercontent.com/tlredz/Scripts/refs/heads/main/main.luau"))()
+	 
+
+    Tabs.Main1:AddButton({
+    Title="Xero Hub",
+    Description="",
+    Callback=function()
+	  getgenv().Team = "Marines"
+getgenv().Hide_Menu = false
+getgenv().Auto_Execute = false
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Xero2409/XeroHub/refs/heads/main/main.lua"))()
+  end
+})
+
+Tabs.Main2:AddButton({
+    Title="Teddy Hub",
+    Description="",
+    Callback=function()
+        repeat task.wait() until game:IsLoaded() and game:GetService("Players") and game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TEDDYHUB-FREEMIUM"))()
+  end
+})
+Tabs.Main3:AddButton({
+    Title="Teddy Auto Bounty",
+    Description="",
+    Callback=function()
+        getgenv().Setting = {
+    ["Team"] = "Pirates",
+    ["Chat"] = {},
+    ["Skip Race V4"] = true,
+    ["Misc"] = {
+        ["Enable Lock Bounty"] = false,
+        ["Lock Bounty"] = {0, 300000000},
+        ["Lock Camera"] = true,
+        ["Enable Cam Farm"] = false,
+        ["White Screen"] = false,
+        ["FPS Boost"] = false,
+        ["Random & Store Fruit"] = true
+    },
+    ["Item"] = {
+        ["Melee"] = {["Enable"] = true,
+            ["Z"] = {["Enable"] = true, ["Hold Time"] = 1},
+            ["X"] = {["Enable"] = true, ["Hold Time"] = 0},
+            ["C"] = {["Enable"] = true, ["Hold Time"] = 0}
+        },
+        ["Blox Fruit"] = {["Enable"] = false,
+            ["Z"] = {["Enable"] = true, ["Hold Time"] = 1.5},
+            ["X"] = {["Enable"] = true, ["Hold Time"] = 0},
+            ["C"] = {["Enable"] = true, ["Hold Time"] = 0},
+            ["V"] = {["Enable"] = true, ["Hold Time"] = 0},
+            ["F"] = {["Enable"] = true, ["Hold Time"] = 0}
+        },
+        ["Sword"] = {["Enable"] = true,
+            ["Z"] = {["Enable"] = true, ["Hold Time"] = 0.3},
+            ["X"] = {["Enable"] = true, ["Hold Time"] = 0.2}
+        },
+        ["Gun"] = {["Enable"] = false,
+            ["Z"] = {["Enable"] = true, ["Hold Time"] = 0.3},
+            ["X"] = {["Enable"] = true, ["Hold Time"] = 0.3}
+        }
+    }
+}
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TEDDYHUB-AUTOBOUNTY"))()
+  end
+})
+
+Tabs.Main4:AddButton({
+    Title="Speed Hub",
+    Description="",
+    Callback=function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
+Tabs.Main4:AddButton({
+    Title="Lumin Hub",
+    Description="",
+    Callback=function()
+        loadstring(game:HttpGet("https://lumin-hub.lol/loader.lua",true))()
+Tabs.Main4:AddButton({
+    Title="Thunder Z Hub",
+    Description="",
+    Callback=function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/ThundarZ/Welcome/refs/heads/main/Main/GaG/Main.lua'))()  
+  end
+})
