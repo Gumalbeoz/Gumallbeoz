@@ -1,0 +1,70 @@
+-- 🌟 FPS BOOST + UNLOCK FPS + AUTO REJOIN + ANTI AFK
+-- Made by ChatGPT
+
+-- ⚡ FPS BOOST
+local function FPSBoost()
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+            v.Lifetime = NumberRange.new(0)
+        elseif v:IsA("Explosion") then
+            v.BlastPressure = 1
+            v.BlastRadius = 1
+        elseif v:IsA("Fire") or v:IsA("Smoke") then
+            v.Enabled = false
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v:Destroy()
+        elseif v:IsA("MeshPart") then
+            v.Material = Enum.Material.Plastic
+            v.Reflectance = 0
+        elseif v:IsA("UnionOperation") or v:IsA("Part") then
+            v.Material = Enum.Material.Plastic
+            v.Reflectance = 0
+        end
+    end
+
+    -- Giảm Lighting
+    local L = game:GetService("Lighting")
+    for _, eff in pairs({"Atmosphere","Sky","Bloom","ColorCorrection","SunRays","DepthOfField"}) do
+        if L:FindFirstChild(eff) then
+            L[eff]:Destroy()
+        end
+    end
+end
+
+-- 🔓 UNLOCK FPS
+local function UnlockFPS()
+    if setfpscap then
+        setfpscap(999)
+    elseif set_fps_cap then
+        set_fps_cap(999)
+    else
+        warn("Executor không hỗ trợ unlock FPS trực tiếp!")
+    end
+end
+
+-- 🔄 AUTO REJOIN
+_G.AutoRejoin = true
+spawn(function()
+    while task.wait() do
+        if _G.AutoRejoin then
+            getgenv().rejoin = game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
+                if child.Name == "ErrorPrompt" and child:FindFirstChild("MessageArea") and child.MessageArea:FindFirstChild("ErrorFrame") then
+                    game:GetService("TeleportService"):Teleport(game.PlaceId)
+                end
+            end)
+        end
+    end
+end)
+
+-- 💤 ANTI AFK
+local vu = game:GetService("VirtualUser")
+game:GetService("Players").LocalPlayer.Idled:Connect(function()
+    vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+end)
+
+-- 🚀 Run
+FPSBoost()
+UnlockFPS()
+print("✅ FPS Boost + Unlock FPS + Auto Rejoin + Anti AFK đã bật!")
