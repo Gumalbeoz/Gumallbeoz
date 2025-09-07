@@ -5,7 +5,7 @@ local Window = WindUI:CreateWindow({
 	Folder = "Cac",
 	Size = UDim2.fromOffset(520, 300),
 	Transparent = true,
-	Theme = "White",
+	Theme = "Dark",
 	SideBarWidth = 190,
 	HasOutline = false,
 });
