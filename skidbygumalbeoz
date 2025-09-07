@@ -1,16 +1,16 @@
 local WindUI = (loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua")))();
 local Window = WindUI:CreateWindow({
-	Title = "Skid Hub",
+	Title = "Cac Hub",
 	Author = "Blox Fruit",
-	Folder = "Skid",
+	Folder = "Cac",
 	Size = UDim2.fromOffset(520, 300),
 	Transparent = true,
-	Theme = "Dark",
+	Theme = "White",
 	SideBarWidth = 190,
 	HasOutline = false,
 });
 Window:EditOpenButton({
-	Title = "Skid Hub",
+	Title = "Cac Hub",
 	CornerRadius = UDim.new(0, 10),
 	Draggable = false
 });
