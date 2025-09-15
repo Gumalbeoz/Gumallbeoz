@@ -1,0 +1,328 @@
+-- ⚙️ Cac Auto Fix Lag Script - Không có menu, tự động chạy
+-- Tác giả: Gumall Roblox
+-- 🌟 Gumall Roblox - Thông báo hiện giữa màn, 0.5s + nghỉ 0.25s
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "Cac_MidNotify"
+gui.ResetOnSpawn = false
+
+-- ⚙️ Hàm hiện 1 dòng
+local function showBigMessage(text)
+    local label = Instance.new("TextLabel", gui)
+    label.AnchorPoint = Vector2.new(0.5, 0.5)
+    label.Position = UDim2.new(0.5, 0, 0.5, 0)
+    label.Size = UDim2.new(0.6, 0, 0.08, 0)
+    label.BackgroundTransparency = 1
+    label.TextTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.new(255, 210, 0)
+    label.Font = Enum.Font.GothamBold
+    label.TextScaled = true
+    label.ZIndex = 9999
+
+    -- Fade in nhanh
+    for i = 1, 0, -0.2 do
+        label.TextTransparency = i
+        wait(0.01)
+    end
+
+    wait(0.5) -- Chỉ hiện 0.5s
+
+    -- Fade out nhanh
+    for i = 0, 1, 0.2 do
+        label.TextTransparency = i
+        wait(0.01)
+    end
+
+    label:Destroy()
+end
+
+-- 📜 Danh sách thông báo
+local messages = {
+    "✨Đang Kiểm Tra Độ Gay✨",
+    "Địt Mẹ Máy Đéo Gì Mà Gay Thế???",
+    "😤Đừng Lo Đã Có Gumall Lo💪",
+    "✅Fix Gay Thành Công✅",
+    "🇻🇳Việt Nam Mãi Đỉnh🇻🇳",
+    "🇻🇳Tôi Yêu Việt Nam🇻🇳",
+    "🕊️Độc Lập - Tự Do - Hạnh Phúc🕊️",
+    "🖕Đụ Lồn Cali, Bẩn Cả Cặc🤮",
+    "Địt Con Mẹ Mày, Cali Cặc Nhỏ Não Teo",
+    "💩Cali - Bán Nước - Hại Dân💩",
+    "😂Đéo Có Nước Cay Ko😂",
+    "Cayyyyyy🤣"
+}
+
+-- 🔁 Hiện từng dòng: 0.5s + 0.25s nghỉ
+task.spawn(function()
+    for _, msg in ipairs(messages) do
+        showBigMessage(msg)
+        wait(0.25) -- nghỉ 0.25s rồi mới tới dòng tiếp theo
+    end
+end)
+
+local player = game:GetService("Players").LocalPlayer
+local lighting = game:GetService("Lighting")
+local terrain = workspace:FindFirstChildOfClass("Terrain")
+local mouse = player:GetMouse()
+
+-- Xoá sương mù
+lighting.FogEnd = 1e10
+lighting.FogStart = 1e10
+
+-- Xoá hiệu ứng nước
+if terrain then
+    terrain.WaterWaveSize = 0
+    terrain.WaterWaveSpeed = 0
+    terrain.WaterReflectance = 0
+    terrain.WaterTransparency = 1
+end
+
+-- Làm skill xám, vật thể xám, skin xám, xoá tóc/phụ kiện
+local function grayscaleAll()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") or obj:IsA("Decal") or obj:IsA("SurfaceGui") then
+            if obj:IsA("BasePart") then obj.Color = Color3.fromRGB(120,120,120) end
+            if obj:IsA("Decal") then obj.Color3 = Color3.fromRGB(120,120,120) end
+        end
+    end
+
+    local char = player.Character or player.CharacterAdded:Wait()
+    for _, item in pairs(char:GetChildren()) do
+        if item:IsA("Accessory") or item:IsA("Hat") then
+            item:Destroy()
+        elseif item:IsA("BasePart") then
+            item.Color = Color3.fromRGB(120,120,120)
+        end
+    end
+end
+grayscaleAll()
+
+-- Giao diện chữ nhỏ phía trên màn hình
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
+
+local titleLabel = Instance.new("TextLabel", gui)
+titleLabel.Size = UDim2.new(1, 0, 0, 30)
+titleLabel.Position = UDim2.new(0, 0, 0, 5)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Fix Lag By HNC Roblox"
+titleLabel.Font = Enum.Font.FredokaOne
+titleLabel.TextScaled = true
+titleLabel.TextTransparency = 0.25
+titleLabel.TextStrokeTransparency = 0.7
+spawn(function()
+    while titleLabel and titleLabel.Parent do
+        for i = 0, 1, 0.01 do
+            titleLabel.TextColor3 = Color3.fromHSV(i, 0.8, 1)
+            wait(0.03)
+        end
+    end
+end)
+
+local subLabel = Instance.new("TextLabel", gui)
+subLabel.Size = UDim2.new(1, 0, 0, 20)
+subLabel.Position = UDim2.new(0, 0, 0, 35)
+subLabel.BackgroundTransparency = 1
+subLabel.Text = "Nếu Mất Fix Lag Thì Vui Lòng Bật Lại Script!"
+subLabel.Font = Enum.Font.Gotham
+subLabel.TextSize = 14
+subLabel.TextTransparency = 0.5
+subLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Hàm tạo viền cầu vồng dạng wave
+local function addRainbowStroke(obj)
+    local stroke = Instance.new("UIStroke", obj)
+    stroke.Thickness = 2
+    spawn(function()
+        while stroke and stroke.Parent do
+            for i = 0, 1, 0.01 do
+                stroke.Color = Color3.fromHSV(i, 1, 1)
+                wait(0.03)
+            end
+        end
+    end)
+end
+
+-- Thanh chỉnh độ sáng 🌕
+local function createSlider(name, position, minVal, maxVal, defaultVal, callback)
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0, 200, 0, 40)
+    frame.Position = position
+    frame.BackgroundTransparency = 0.3
+    frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    frame.Active = true
+    frame.Draggable = true
+    addRainbowStroke(frame)
+
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(0.4, 0, 1, 0)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = name
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.TextTransparency = 0.3
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+
+    local slider = Instance.new("TextBox", frame)
+    slider.Size = UDim2.new(0.6, -10, 0.7, 0)
+    slider.Position = UDim2.new(0.4, 5, 0.15, 0)
+    slider.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    slider.Text = tostring(defaultVal)
+    slider.Font = Enum.Font.Gotham
+    slider.TextSize = 14
+    slider.TextColor3 = Color3.new(1,1,1)
+
+    slider.FocusLost:Connect(function()
+        local val = tonumber(slider.Text)
+        if val then
+            val = math.clamp(val, minVal, maxVal)
+            slider.Text = tostring(val)
+            callback(val)
+        end
+    end)
+end
+
+-- Tạo thanh chỉnh độ sáng (0 - 1500)
+createSlider("Độ sáng🌕", UDim2.new(1, -210, 0, 60), 0, 1500, lighting.Brightness, function(val)
+    lighting.Brightness = val
+end)
+
+-- Dịch chuyển bằng chuột khi bật
+local teleportEnabled = false
+
+local tpBtn = Instance.new("TextButton", gui)
+tpBtn.Size = UDim2.new(0, 120, 0, 35)
+tpBtn.Position = UDim2.new(1, -130, 0, 110)
+tpBtn.Text = "Dịch Chuyển [TẮT]"
+tpBtn.Font = Enum.Font.GothamBold
+tpBtn.TextSize = 14
+tpBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+tpBtn.TextColor3 = Color3.new(1, 1, 1)
+tpBtn.Active = true
+tpBtn.Draggable = true
+addRainbowStroke(tpBtn)
+
+local function updateTPButton()
+    tpBtn.Text = teleportEnabled and "Dịch Chuyển [BẬT]" or "Dịch Chuyển [TẮT]"
+end
+
+tpBtn.MouseButton1Click:Connect(function()
+    teleportEnabled = not teleportEnabled
+    updateTPButton()
+end)
+
+mouse.Button1Down:Connect(function()
+    if teleportEnabled and mouse.Target then
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = CFrame.new(mouse.Hit.p + Vector3.new(0, 3, 0))
+        end
+    end
+end)
+
+updateTPButton()
+--===[ GIẢM ĐỒ HỌA & TỐI ƯU GAME ]===--
+
+-- 1. Tắt hầu hết hiệu ứng, giữ lại một phần cơ bản
+for _, v in pairs(game:GetDescendants()) do
+    if v:IsA("Trail") or v:IsA("Beam") or v:IsA("Explosion") then
+        v:Destroy()
+    elseif v:IsA("ParticleEmitter") then
+        v.Enabled = false
+        v.LightEmission = 0
+        v.Rate = 0 -- tắt hoàn toàn
+        v.Lifetime = NumberRange.new(0) -- không tồn tại
+    elseif v:IsA("Decal") or v:IsA("Texture") then
+        v.Transparency = 1 -- ẩn hoàn toàn
+    elseif v:IsA("MeshPart") or v:IsA("UnionOperation") or v:IsA("Part") then
+        if v.Name ~= "Head" and v.Name ~= "HumanoidRootPart" then
+            v.Material = Enum.Material.Plastic -- giảm hơn cả SmoothPlastic
+            v.CastShadow = false
+            v.Reflectance = 0
+            v.Color = Color3.fromRGB(128, 128, 128) -- chuyển tất cả sang xám
+        end
+    end
+end
+
+-- 2. Lighting nhẹ
+local Lighting = game:GetService("Lighting")
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 1e10
+Lighting.Brightness = 0 -- tối đa giảm ánh sáng
+Lighting.ClockTime = 12 -- ánh sáng trung lập
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+Lighting.OutdoorAmbient = Color3.fromRGB(100, 100, 100)
+
+-- 3. Tắt các hiệu ứng hình ảnh nâng cao
+for _, v in pairs(Lighting:GetChildren()) do
+	if v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("SunRaysEffect") then
+		v.Enabled = false
+	end
+end
+
+-- 4. Terrain đơn giản
+local terrain = workspace:FindFirstChildOfClass("Terrain")
+if terrain then
+	terrain.WaterWaveSize = 0
+	terrain.WaterWaveSpeed = 0
+	terrain.WaterReflectance = 0
+	terrain.WaterTransparency = 1 -- hoàn toàn trong suốt
+end
+
+-- 5. Chất lượng hiển thị vừa thấp để ổn định FPS
+settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 -- thấp nhất có thể
+
+--===[ HIỂN THỊ ĐỘ LAG GÓC TRÁI - KHÔNG NỀN + VIỀN CẦU VỒNG WAVE ]===--
+
+local RunService = game:GetService("RunService")
+
+local fpsFrame = Instance.new("Frame", gui)
+fpsFrame.Name = "FPS_Display_80"
+fpsFrame.Position = UDim2.new(0, 10, 0, 150)
+fpsFrame.Size = UDim2.new(0, 120, 0, 30)
+fpsFrame.BackgroundTransparency = 1
+fpsFrame.Active = true
+fpsFrame.Draggable = true
+  -- Không nền
+
+-- Viền cầu vồng wave
+local stroke = Instance.new("UIStroke", fpsFrame)
+stroke.Thickness = 2
+stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- Hiệu ứng chuyển màu HSV cầu vồng
+spawn(function()
+	while stroke and stroke.Parent do
+		for i = 0, 1, 0.01 do
+			stroke.Color = Color3.fromHSV(i, 1, 1)
+			wait(0.03)
+		end
+	end
+end)
+
+-- Nhãn chữ FPS
+local fpsLabel = Instance.new("TextLabel", fpsFrame)
+fpsLabel.Size = UDim2.new(1, 0, 1, 0)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.TextColor3 = Color3.new(1, 1, 1)
+fpsLabel.Font = Enum.Font.Code
+fpsLabel.TextSize = 18
+fpsLabel.Text = "Độ Lag: ..."
+fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Đếm FPS
+local lastTime = tick()
+local frames = 0
+
+RunService.RenderStepped:Connect(function()
+	frames += 1
+	if tick() - lastTime >= 1 then
+		fpsLabel.Text = "Độ Lag: " .. frames
+		frames = 0
+		lastTime = tick()
+	end
+end)
