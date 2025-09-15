@@ -107,7 +107,7 @@ local titleLabel = Instance.new("TextLabel", gui)
 titleLabel.Size = UDim2.new(1, 0, 0, 30)
 titleLabel.Position = UDim2.new(0, 0, 0, 5)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "Fix Lag By HNC Roblox"
+titleLabel.Text = "Fix Lag By Gumall Roblox"
 titleLabel.Font = Enum.Font.FredokaOne
 titleLabel.TextScaled = true
 titleLabel.TextTransparency = 0.25
@@ -311,7 +311,7 @@ fpsLabel.BackgroundTransparency = 1
 fpsLabel.TextColor3 = Color3.new(1, 1, 1)
 fpsLabel.Font = Enum.Font.Code
 fpsLabel.TextSize = 18
-fpsLabel.Text = "Độ Lag: ..."
+fpsLabel.Text = "Độ Gay: ..."
 fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 -- Đếm FPS
