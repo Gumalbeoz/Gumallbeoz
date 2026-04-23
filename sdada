@@ -1,0 +1,230 @@
+local player = game.Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+
+-- MAIN
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 520, 0, 320)
+main.Position = UDim2.new(0.5, -260, 0.5, -160)
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+main.BorderSizePixel = 0
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.Parent = gui
+
+-- ===== TITLE BAR (kéo tại đây) =====
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(35,35,35)
+titleBar.Parent = main
+
+local titleText = Instance.new("TextLabel")
+titleText.Size = UDim2.new(1, 0, 1, 0)
+titleText.Text = "My UI"
+titleText.TextColor3 = Color3.new(1,1,1)
+titleText.BackgroundTransparency = 1
+titleText.Parent = titleBar
+
+-- ===== DRAG MƯỢT (CHỈ TITLE BAR) =====
+local dragging = false
+local dragStart
+local startPos
+
+titleBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = main.Position
+		
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		
+		main.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+-- ===== MENU BUTTON =====
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 120, 0, 40)
+toggleBtn.Position = UDim2.new(0, 20, 0, 20)
+toggleBtn.Text = "MENU"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0,170,255)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.Parent = gui
+
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+
+local isOpen = true
+
+local function openMenu()
+	main.Visible = true
+	main.Size = UDim2.new(0, 0, 0, 0)
+	main.BackgroundTransparency = 1
+	
+	TweenService:Create(main, TweenInfo.new(0.25), {
+		Size = UDim2.new(0, 520, 0, 320),
+		BackgroundTransparency = 0
+	}):Play()
+end
+
+local function closeMenu()
+	local tween = TweenService:Create(main, TweenInfo.new(0.25), {
+		Size = UDim2.new(0, 0, 0, 0),
+		BackgroundTransparency = 1
+	})
+	
+	tween:Play()
+	tween.Completed:Connect(function()
+		main.Visible = false
+	end)
+end
+
+toggleBtn.MouseButton1Click:Connect(function()
+	isOpen = not isOpen
+	if isOpen then
+		openMenu()
+	else
+		closeMenu()
+	end
+end)
+
+-- ===== SIDEBAR =====
+local sidebar = Instance.new("Frame")
+sidebar.Size = UDim2.new(0, 150, 1, -30)
+sidebar.Position = UDim2.new(0, 0, 0, 30)
+sidebar.BackgroundColor3 = Color3.fromRGB(30,30,30)
+sidebar.Parent = main
+
+-- CONTENT
+local contentHolder = Instance.new("Frame")
+contentHolder.Size = UDim2.new(1, -150, 1, -30)
+contentHolder.Position = UDim2.new(0, 150, 0, 30)
+contentHolder.BackgroundTransparency = 1
+contentHolder.Parent = main
+
+local tabs = {}
+
+local function createTab(name)
+	local tab = Instance.new("Frame")
+	tab.Size = UDim2.new(1,0,1,0)
+	tab.Visible = false
+	tab.BackgroundTransparency = 1
+	tab.Parent = contentHolder
+	tabs[name] = tab
+	return tab
+end
+
+local function switchTab(name)
+	for tabName, frame in pairs(tabs) do
+		if tabName == name then
+			frame.Visible = true
+			frame.Position = UDim2.new(0,50,0,0)
+			TweenService:Create(frame, TweenInfo.new(0.25), {
+				Position = UDim2.new(0,0,0,0)
+			}):Play()
+		else
+			frame.Visible = false
+		end
+	end
+end
+
+local function createSidebarButton(name, y)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -10, 0, 35)
+	btn.Position = UDim2.new(0, 5, 0, y)
+	btn.Text = name
+	btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Parent = sidebar
+	
+	btn.MouseButton1Click:Connect(function()
+		switchTab(name)
+	end)
+end
+
+-- TABS
+local mainTab = createTab("Main")
+local statsTab = createTab("Stats")
+local teleportTab = createTab("Teleport")
+
+createSidebarButton("Main", 10)
+createSidebarButton("Stats", 50)
+createSidebarButton("Teleport", 90)
+
+switchTab("Main")
+
+-- ===== TOGGLE =====
+local function createToggle(parent, text, y)
+	local holder = Instance.new("Frame")
+	holder.Size = UDim2.new(1, -20, 0, 40)
+	holder.Position = UDim2.new(0, 10, 0, y)
+	holder.BackgroundTransparency = 1
+	holder.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0.7, 0, 1, 0)
+	label.Text = text
+	label.TextColor3 = Color3.new(1,1,1)
+	label.BackgroundTransparency = 1
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = holder
+
+	local toggle = Instance.new("Frame")
+	toggle.Size = UDim2.new(0, 40, 0, 20)
+	toggle.Position = UDim2.new(1, -50, 0.5, -10)
+	toggle.BackgroundColor3 = Color3.fromRGB(80,80,80)
+	toggle.Parent = holder
+
+	local circle = Instance.new("Frame")
+	circle.Size = UDim2.new(0, 18, 0, 18)
+	circle.Position = UDim2.new(0, 1, 0, 1)
+	circle.BackgroundColor3 = Color3.new(1,1,1)
+	circle.Parent = toggle
+
+	local enabled = false
+
+	local function update()
+		if enabled then
+			TweenService:Create(toggle, TweenInfo.new(0.2), {
+				BackgroundColor3 = Color3.fromRGB(0,170,255)
+			}):Play()
+			TweenService:Create(circle, TweenInfo.new(0.2), {
+				Position = UDim2.new(1, -19, 0, 1)
+			}):Play()
+		else
+			TweenService:Create(toggle, TweenInfo.new(0.2), {
+				BackgroundColor3 = Color3.fromRGB(80,80,80)
+			}):Play()
+			TweenService:Create(circle, TweenInfo.new(0.2), {
+				Position = UDim2.new(0, 1, 0, 1)
+			}):Play()
+		end
+	end
+
+	holder.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			enabled = not enabled
+			update()
+			print(text, enabled)
+		end
+	end)
+end
+
+createToggle(mainTab, "Option A", 20)
+createToggle(mainTab, "Option B", 70)
+createToggle(mainTab, "Option C", 120)
