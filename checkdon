@@ -1,0 +1,161 @@
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = playerGui
+
+-- Helper bo góc
+local function addCorner(ui, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius or 10)
+	corner.Parent = ui
+end
+
+-- Helper set font toàn bộ
+local function setFont(ui, font, textSize)
+	if ui:IsA("TextLabel") or ui:IsA("TextButton") or ui:IsA("TextBox") then
+		ui.Font = font
+		if textSize then
+			ui.TextSize = textSize
+		end
+	end
+end
+
+-- Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 320, 0, 240)
+frame.Position = UDim2.new(0.5, -160, 0.5, -120)
+frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+frame.Parent = screenGui
+addCorner(frame, 15)
+
+-- 🌈 Viền cầu vồng
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 3
+stroke.Parent = frame
+
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+	hue = (hue + dt * 0.2) % 1
+	stroke.Color = Color3.fromHSV(hue, 1, 1)
+end)
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Text = "Đơn hàng"
+title.TextScaled = true
+title.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+title.Parent = frame
+addCorner(title, 15)
+
+-- Ô nhập
+local orderBox = Instance.new("TextBox")
+orderBox.PlaceholderText = "Nhập nội dung đơn hàng..."
+orderBox.Size = UDim2.new(0.9, 0, 0, 90)
+orderBox.Position = UDim2.new(0.05, 0, 0.28, 0)
+orderBox.TextWrapped = true
+orderBox.TextYAlignment = Enum.TextYAlignment.Top
+orderBox.ClearTextOnFocus = false
+orderBox.Parent = frame
+addCorner(orderBox, 10)
+
+-- Buttons
+local clearButton = Instance.new("TextButton")
+clearButton.Text = "Xoá"
+clearButton.Size = UDim2.new(0.4, 0, 0, 35)
+clearButton.Position = UDim2.new(0.05, 0, 0.65, 0)
+clearButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+clearButton.TextColor3 = Color3.new(1,1,1)
+clearButton.Parent = frame
+addCorner(clearButton, 10)
+
+local showButton = Instance.new("TextButton")
+showButton.Text = "Hiển thị"
+showButton.Size = UDim2.new(0.4, 0, 0, 35)
+showButton.Position = UDim2.new(0.55, 0, 0.65, 0)
+showButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+showButton.TextColor3 = Color3.new(1,1,1)
+showButton.Parent = frame
+addCorner(showButton, 10)
+
+-- Result
+local result = Instance.new("TextLabel")
+result.Size = UDim2.new(0.9, 0, 0, 50)
+result.Position = UDim2.new(0.05, 0, 0.82, 0)
+result.Text = "Nội dung sẽ hiển thị ở đây"
+result.TextWrapped = true
+result.BackgroundTransparency = 1
+result.Parent = frame
+
+--------------------------------------------------
+-- 🎨 FONT Avenir-like (Gotham)
+--------------------------------------------------
+
+setFont(title, Enum.Font.GothamBold, 20)
+setFont(orderBox, Enum.Font.Gotham, 18)
+setFont(clearButton, Enum.Font.Gotham, 16)
+setFont(showButton, Enum.Font.Gotham, 16)
+setFont(result, Enum.Font.Gotham, 16)
+
+--------------------------------------------------
+-- Buttons logic
+--------------------------------------------------
+
+showButton.MouseButton1Click:Connect(function()
+	local text = orderBox.Text ~= "" and orderBox.Text or "Chưa có nội dung"
+	result.Text = "Đơn hàng:\n" .. text
+end)
+
+clearButton.MouseButton1Click:Connect(function()
+	orderBox.Text = ""
+	result.Text = "Đã xoá nội dung"
+end)
+
+--------------------------------------------------
+-- DRAG UI
+--------------------------------------------------
+
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+title.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+	or input.UserInputType == Enum.UserInputType.Touch then
+		
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+title.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+	or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
