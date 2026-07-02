@@ -1,0 +1,526 @@
+--[[
+    Script Auto Farm Blox Fruits: Level 1 → Level Tối Đa
+    Yêu cầu: Executor hỗ trợ full Lua (Synapse X, Krnl, Script-Ware, v.v.)
+    Đặt script vào thư mục "autoexec" hoặc chạy trực tiếp từ executor.
+--]]
+
+-- ===================== TIỆN ÍCH =====================
+local Services = {
+    Players = game:GetService("Players"),
+    RunService = game:GetService("RunService"),
+    TweenService = game:GetService("TweenService"),
+    TeleportService = game:GetService("TeleportService"),
+    VirtualInputManager = game:GetService("VirtualInputManager"),
+    VirtualUser = game:GetService("VirtualUser"),
+    ReplicatedStorage = game:GetService("ReplicatedStorage"),
+    UserInputService = game:GetService("UserInputService"),
+    HttpService = game:GetService("HttpService")
+}
+
+local LocalPlayer = Services.Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = workspace.CurrentCamera
+
+-- Hàm chờ an toàn, không gây lag
+local function wait(seconds)
+    local start = os.clock()
+    while os.clock() - start < seconds do
+        Services.RunService.Heartbeat:Wait()
+    end
+end
+
+-- Kiểm tra nhân vật hợp lệ
+local function isCharacterAlive(character)
+    if not character then
+        character = LocalPlayer.Character
+    end
+    if not character then return false end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    return humanoid and humanoid.Health > 0
+end
+
+-- Lấy HumanoidRootPart an toàn
+local function getRootPart(character)
+    if not character then character = LocalPlayer.Character end
+    if not character then return nil end
+    return character:FindFirstChild("HumanoidRootPart")
+end
+
+-- Tính khoảng cách giữa 2 Vector3
+local function distance(pos1, pos2)
+    return (pos1 - pos2).Magnitude
+end
+
+-- ===================== CẤU HÌNH =====================
+local Config = {
+    -- Khoảng cách phát hiện và tấn công quái
+    AttackRange = 50,
+    -- Bán kính quét quái quanh nhân vật
+    ScanRadius = 150,
+    -- Độ trễ giữa các hành động (giây)
+    SkillCooldown = 0.3,
+    CollectDelay = 0.5,
+    -- Ngưỡng máu thấp để kích hoạt né tránh (phần trăm)
+    LowHealthPercent = 25,
+    -- Các phím kỹ năng sẽ spam (tùy chỉnh theo keybind của bạn)
+    SkillKeys = {
+        Melee = Enum.KeyCode.Z,
+        Ranged = Enum.KeyCode.X,
+        Dash = Enum.KeyCode.C,
+        Block = Enum.KeyCode.F
+    },
+    -- Có sử dụng trái ác quỷ để farm không
+    UseBloxFruit = false,
+    -- Tự động cộng điểm chỉ số
+    AutoStats = true,
+    -- Chỉ số ưu tiên (Melee, Defense, Sword, Gun, BloxFruit)
+    StatPriority = "Melee",
+    -- Chống AFK tự động
+    AntiAFK = true,
+    -- Tự động dịch chuyển đến NPC nhận quest
+    TeleportToNPC = true,
+    -- Đổi server nếu bị kẹt sau khoảng thời gian này (giây)
+    ServerHopTimeout = 600
+}
+
+-- ===================== CƠ SỞ DỮ LIỆU QUEST =====================
+-- Dữ liệu quest mẫu: {Tên quái, Level tối thiểu, Level tối đa, Tên NPC, Vị trí NPC (CFrame)}
+local QuestDatabase = {
+    {MonsterName = "Bandit",        MinLevel = 1,   MaxLevel = 10,  NPCName = "BanditQuestGiver",      NPCPosition = CFrame.new(1050, 16, 1600)},
+    {MonsterName = "Monkey",        MinLevel = 10,  MaxLevel = 20,  NPCName = "MonkeyQuestGiver",      NPCPosition = CFrame.new(1200, 20, 1400)},
+    {MonsterName = "Pirate",        MinLevel = 20,  MaxLevel = 35,  NPCName = "PirateQuestGiver",      NPCPosition = CFrame.new(1300, 18, 1200)},
+    {MonsterName = "Brute",         MinLevel = 35,  MaxLevel = 50,  NPCName = "BruteQuestGiver",       NPCPosition = CFrame.new(1400, 22, 1000)},
+    {MonsterName = "DesertBandit",  MinLevel = 50,  MaxLevel = 70,  NPCName = "DesertQuestGiver",      NPCPosition = CFrame.new(1600, 10, 800)},
+    {MonsterName = "SnowBandit",    MinLevel = 70,  MaxLevel = 90,  NPCName = "SnowQuestGiver",        NPCPosition = CFrame.new(1800, 30, 600)},
+    {MonsterName = "Marine",        MinLevel = 90,  MaxLevel = 110, NPCName = "MarineQuestGiver",      NPCPosition = CFrame.new(2000, 15, 400)},
+    {MonsterName = "SkyBandit",     MinLevel = 110, MaxLevel = 135, NPCName = "SkyQuestGiver",         NPCPosition = CFrame.new(2200, 50, 200)},
+    {MonsterName = "DarkMaster",    MinLevel = 135, MaxLevel = 160, NPCName = "DarkQuestGiver",        NPCPosition = CFrame.new(2400, 20, 0)},
+    {MonsterName = "Gladiator",     MinLevel = 160, MaxLevel = 190, NPCName = "GladiatorQuestGiver",   NPCPosition = CFrame.new(2600, 18, -200)},
+    {MonsterName = "MagmaNinja",    MinLevel = 190, MaxLevel = 220, NPCName = "MagmaQuestGiver",       NPCPosition = CFrame.new(2800, 25, -400)},
+    {MonsterName = "Warlord",       MinLevel = 220, MaxLevel = 255, NPCName = "WarlordQuestGiver",     NPCPosition = CFrame.new(3000, 15, -600)},
+    {MonsterName = "GodOfDestruction", MinLevel = 255, MaxLevel = 999, NPCName = "GodQuestGiver",      NPCPosition = CFrame.new(3500, 100, -1000)},
+}
+
+-- ===================== HÀM DỊCH CHUYỂN =====================
+local function tweenToPosition(targetCFrame, speedMultiplier)
+    local character = LocalPlayer.Character
+    if not isCharacterAlive(character) then return false end
+    local rootPart = getRootPart(character)
+    if not rootPart then return false end
+    
+    local dist = distance(rootPart.Position, targetCFrame.Position)
+    if dist < 1 then return true end -- Đã đến nơi
+    
+    local tweenTime = dist / (100 * speedMultiplier) -- Tốc độ mặc định 100 studs/s
+    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+    local tween = Services.TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    
+    -- Chờ tween hoàn thành hoặc bị ngắt
+    local startTime = os.clock()
+    while tween.PlaybackState == Enum.PlaybackState.Playing do
+        if os.clock() - startTime > tweenTime + 2 then break end -- Timeout an toàn
+        Services.RunService.Heartbeat:Wait()
+    end
+    return true
+end
+
+local function teleportToPosition(targetCFrame)
+    local character = LocalPlayer.Character
+    if not isCharacterAlive(character) then return false end
+    local rootPart = getRootPart(character)
+    if not rootPart then return false end
+    
+    -- Phương pháp 1: Gán trực tiếp CFrame (có thể bị phát hiện anti-cheat)
+    rootPart.CFrame = targetCFrame
+    wait(0.1)
+    -- Phương pháp 2: Dùng Tween siêu nhanh nếu phương pháp 1 bị chặn
+    if distance(rootPart.Position, targetCFrame.Position) > 5 then
+        tweenToPosition(targetCFrame, 5) -- Tốc độ nhanh gấp 5 lần
+    end
+    return true
+end
+
+-- ===================== HÀM TÌM QUEST PHÙ HỢP =====================
+local function getQuestForLevel(level)
+    for _, quest in ipairs(QuestDatabase) do
+        if level >= quest.MinLevel and level <= quest.MaxLevel then
+            return quest
+        end
+    end
+    -- Nếu vượt quá tất cả, trả về quest cuối cùng
+    if level > QuestDatabase[#QuestDatabase].MaxLevel then
+        return QuestDatabase[#QuestDatabase]
+    end
+    -- Nếu dưới mức tối thiểu, trả về quest đầu tiên
+    return QuestDatabase[1]
+end
+
+-- ===================== HÀM LẤY LEVEL HIỆN TẠI =====================
+local function getCurrentLevel()
+    -- Thử nhiều đường dẫn khác nhau (tùy phiên bản game)
+    local level
+    
+    -- Cách 1: Thông qua Data của Player
+    pcall(function()
+        level = LocalPlayer.Data.Level.Value
+    end)
+    if level then return level end
+    
+    -- Cách 2: Thông qua leaderstats
+    pcall(function()
+        level = LocalPlayer.leaderstats.Level.Value
+    end)
+    if level then return level end
+    
+    -- Cách 3: Quét trong PlayerGui
+    pcall(function()
+        local gui = LocalPlayer.PlayerGui:FindFirstChild("Level", true)
+        if gui and gui:IsA("TextLabel") then
+            level = tonumber(gui.Text:match("%d+"))
+        end
+    end)
+    
+    return level or 1 -- Mặc định trả về 1 nếu không đọc được
+end
+
+-- ===================== HÀM TƯƠNG TÁC VỚI NPC =====================
+local function interactWithNPC(npcName)
+    -- Tìm NPC trong workspace
+    local npc = workspace:FindFirstChild(npcName, true)
+    if not npc then
+        -- Thử tìm trong folder NPCs
+        local npcFolder = workspace:FindFirstChild("NPCs")
+        if npcFolder then
+            npc = npcFolder:FindFirstChild(npcName)
+        end
+    end
+    if not npc then return false end
+    
+    -- Phương pháp 1: Fire ProximityPrompt
+    local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt")
+    if prompt then
+        fireproximityprompt(prompt)
+        wait(1)
+        return true
+    end
+    
+    -- Phương pháp 2: Fire ClickDetector
+    local clickDetector = npc:FindFirstChildWhichIsA("ClickDetector")
+    if clickDetector then
+        fireclickdetector(clickDetector)
+        wait(1)
+        return true
+    end
+    
+    -- Phương pháp 3: Kích hoạt sự kiện RemoteEvent (cần tìm đúng event)
+    local questRemote = Services.ReplicatedStorage:FindFirstChild("QuestStart")
+    if questRemote then
+        questRemote:FireServer(npcName)
+        wait(1)
+        return true
+    end
+    
+    return false
+end
+
+-- ===================== HÀM TÌM MỤC TIÊU =====================
+local function findBestTarget(monsterName)
+    local character = LocalPlayer.Character
+    if not isCharacterAlive(character) then return nil end
+    local rootPart = getRootPart(character)
+    if not rootPart then return nil end
+    
+    local closestTarget = nil
+    local closestDist = Config.ScanRadius
+    
+    -- Tìm trong folder Enemies (hoặc workspace trực tiếp)
+    local enemyFolder = workspace:FindFirstChild("Enemies") or workspace
+    
+    for _, obj in ipairs(enemyFolder:GetChildren()) do
+        if obj.Name == monsterName and obj:IsA("Model") then
+            local humanoid = obj:FindFirstChildOfClass("Humanoid")
+            local enemyRoot = obj:FindFirstChild("HumanoidRootPart")
+            if humanoid and humanoid.Health > 0 and enemyRoot then
+                local dist = distance(rootPart.Position, enemyRoot.Position)
+                if dist < closestDist then
+                    closestDist = dist
+                    closestTarget = obj
+                end
+            end
+        end
+    end
+    
+    return closestTarget
+end
+
+-- ===================== HÀM TẤN CÔNG =====================
+local function attackTarget(target)
+    local character = LocalPlayer.Character
+    if not isCharacterAlive(character) then return false end
+    if not target or not target.Parent then return false end -- Mục tiêu đã chết hoặc biến mất
+    
+    local rootPart = getRootPart(character)
+    local targetRoot = target:FindFirstChild("HumanoidRootPart")
+    if not rootPart or not targetRoot then return false end
+    
+    -- Di chuyển vào tầm tấn công nếu cần
+    local dist = distance(rootPart.Position, targetRoot.Position)
+    if dist > Config.AttackRange then
+        local direction = (targetRoot.Position - rootPart.Position).Unit
+        local newPos = targetRoot.Position - direction * (Config.AttackRange - 2)
+        tweenToPosition(CFrame.new(newPos), 2)
+    end
+    
+    -- Spam tất cả kỹ năng đã cấu hình
+    local function pressKey(keyCode)
+        keypress(keyCode)
+        wait(Config.SkillCooldown)
+        keyrelease(keyCode)
+    end
+    
+    -- Kỹ năng cận chiến
+    pressKey(Config.SkillKeys.Melee)
+    wait(0.1)
+    
+    -- Kỹ năng tầm xa
+    pressKey(Config.SkillKeys.Ranged)
+    wait(0.1)
+    
+    -- Đánh thường bằng chuột
+    mouse1press()
+    wait(0.2)
+    mouse1release()
+    wait(0.1)
+    
+    -- Né tránh nếu máu thấp
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid and (humanoid.Health / humanoid.MaxHealth * 100) < Config.LowHealthPercent then
+        -- Lùi nhanh về phía sau
+        local backPos = rootPart.CFrame * CFrame.new(0, 0, -20)
+        tweenToPosition(backPos, 3)
+        wait(0.5)
+        -- Sử dụng kỹ năng né tránh nếu có
+        pressKey(Config.SkillKeys.Dash)
+    end
+    
+    return true
+end
+
+-- ===================== HÀM NHẶT VẬT PHẨM =====================
+local function collectItems()
+    local character = LocalPlayer.Character
+    if not isCharacterAlive(character) then return end
+    local rootPart = getRootPart(character)
+    if not rootPart then return end
+    
+    -- Danh sách tên vật phẩm cần nhặt
+    local lootNames = {"Beli", "Fragment", "Gem", "Chest", "Money"}
+    
+    for _, item in ipairs(workspace:GetChildren()) do
+        local shouldCollect = false
+        for _, lootName in ipairs(lootNames) do
+            if item.Name:find(lootName) then
+                shouldCollect = true
+                break
+            end
+        end
+        if item:IsA("Tool") then
+            shouldCollect = true
+        end
+        
+        if shouldCollect and item:IsA("BasePart") then
+            local dist = distance(rootPart.Position, item.Position)
+            if dist < 30 then
+                -- Dịch chuyển nhanh đến vật phẩm
+                tweenToPosition(item.CFrame, 3)
+                -- Kích hoạt sự kiện chạm (TouchInterest)
+                firetouchinterest(rootPart, item, 0)
+                wait(Config.CollectDelay)
+            end
+        end
+    end
+end
+
+-- ===================== HÀM TỰ ĐỘNG CỘNG ĐIỂM CHỈ SỐ =====================
+local function autoDistributeStats()
+    if not Config.AutoStats then return end
+    
+    -- Tìm RemoteEvent tăng chỉ số
+    local statEvent = Services.ReplicatedStorage:FindFirstChild("StatIncrease")
+    if not statEvent then
+        statEvent = Services.ReplicatedStorage:FindFirstChild("AddStat")
+    end
+    
+    if statEvent then
+        -- Cố gắng tăng chỉ số ưu tiên
+        local success, err = pcall(function()
+            statEvent:FireServer(Config.StatPriority)
+        end)
+        if not success then
+            -- Fallback: Thử gửi trực tiếp
+            pcall(function()
+                statEvent:FireServer(1) -- 1 = Melee (cần kiểm tra thứ tự trong game)
+            end)
+        end
+        wait(0.1)
+    end
+end
+
+-- ===================== HÀM CHỐNG AFK =====================
+local function antiAFK()
+    if not Config.AntiAFK then return end
+    local vu = Services.VirtualUser
+    -- Di chuyển nhẹ camera để chống AFK
+    vu:CaptureController()
+    vu:ClickButton2(Vector2.new())
+    wait(1)
+    vu:ClickButton1(Vector2.new())
+end
+
+-- ===================== HÀM ĐỔI SERVER =====================
+local lastPosition = nil
+local lastMoveTime = os.clock()
+
+local function updatePositionTracking()
+    local rootPart = getRootPart()
+    if rootPart then
+        lastPosition = rootPart.Position
+        lastMoveTime = os.clock()
+    end
+end
+
+local function checkAndHopServer()
+    local rootPart = getRootPart()
+    if not rootPart or not lastPosition then
+        updatePositionTracking()
+        return
+    end
+    
+    local currentPos = rootPart.Position
+    local dist = distance(currentPos, lastPosition)
+    
+    -- Nếu không di chuyển đáng kể trong khoảng thời gian timeout
+    if dist < 10 and (os.clock() - lastMoveTime) > Config.ServerHopTimeout then
+        -- Cố gắng dịch chuyển đến vị trí mới trước
+        local randomOffset = Vector3.new(math.random(-50, 50), 0, math.random(-50, 50))
+        local newPos = currentPos + randomOffset
+        teleportToPosition(CFrame.new(newPos))
+        wait(2)
+        
+        -- Nếu vẫn kẹt, đổi server
+        if distance(getRootPart().Position, newPos) < 5 then
+            Services.TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        end
+    end
+    
+    updatePositionTracking()
+end
+
+-- ===================== VÒNG LẶP CHÍNH =====================
+local function mainFarmLoop()
+    while true do
+        -- Đợi nhân vật spawn nếu chết
+        if not isCharacterAlive() then
+            -- Thử hồi sinh
+            local reviveEvent = Services.ReplicatedStorage:FindFirstChild("Revive")
+            if reviveEvent then
+                pcall(function() reviveEvent:FireServer() end)
+            end
+            wait(3)
+            goto continue
+        end
+        
+        -- Lấy level hiện tại và quest phù hợp
+        local currentLevel = getCurrentLevel()
+        local quest = getQuestForLevel(currentLevel)
+        
+        if quest then
+            -- Bước 1: Di chuyển đến NPC nhận quest
+            if Config.TeleportToNPC then
+                local rootPart = getRootPart()
+                local distToNPC = rootPart and distance(rootPart.Position, quest.NPCPosition.Position) or 999
+                if distToNPC > 20 then
+                    teleportToPosition(quest.NPCPosition)
+                    wait(0.5)
+                end
+                -- Tương tác với NPC
+                interactWithNPC(quest.NPCName)
+                wait(1)
+            end
+            
+            -- Bước 2: Tìm và tấn công mục tiêu
+            local target = findBestTarget(quest.MonsterName)
+            if target then
+                -- Tấn công đến khi mục tiêu chết hoặc biến mất
+                local attackStartTime = os.clock()
+                while target and target.Parent and isCharacterAlive() do
+                    local success = attackTarget(target)
+                    if not success then break end
+                    if os.clock() - attackStartTime > 30 then break end -- Timeout 30 giây mỗi mục tiêu
+                    wait(0.1)
+                end
+            else
+                -- Không tìm thấy quái, di chuyển ngẫu nhiên để tìm
+                local rootPart = getRootPart()
+                if rootPart then
+                    local randomPos = quest.NPCPosition.Position + Vector3.new(
+                        math.random(-50, 50),
+                        0,
+                        math.random(-50, 50)
+                    )
+                    tweenToPosition(CFrame.new(randomPos), 1)
+                    wait(1)
+                end
+            end
+            
+            -- Bước 3: Nhặt vật phẩm
+            collectItems()
+            
+            -- Bước 4: Tự động cộng điểm chỉ số
+            autoDistributeStats()
+            
+            -- Bước 5: Chống AFK
+            antiAFK()
+        end
+        
+        -- Kiểm tra kẹt và đổi server
+        checkAndHopServer()
+        
+        ::continue::
+        wait(0.5) -- Thời gian nghỉ giữa các chu kỳ để giảm lag
+    end
+end
+
+-- ===================== KHỞI ĐỘNG =====================
+-- Kết nối sự kiện khi nhân vật được thêm vào (respawn)
+LocalPlayer.CharacterAdded:Connect(function(character)
+    wait(2) -- Đợi nhân vật tải hoàn toàn
+    updatePositionTracking()
+    -- Chạy vòng lặp chính trong coroutine mới
+    coroutine.wrap(mainFarmLoop)()
+end)
+
+-- Chạy lần đầu nếu nhân vật đã tồn tại
+if LocalPlayer.Character then
+    wait(1)
+    updatePositionTracking()
+    coroutine.wrap(mainFarmLoop)()
+end
+
+-- Thread kiểm tra server hop độc lập
+coroutine.wrap(function()
+    while true do
+        wait(Config.ServerHopTimeout)
+        if isCharacterAlive() then
+            checkAndHopServer()
+        end
+    end
+end)()
+
+-- In thông báo khởi động
+warn("========================================")
+warn(" Blox Fruits Auto Farm Script Loaded")
+warn(" Tác giả: Palofsc")
+warn(" Level hiện tại: " .. getCurrentLevel())
+warn("========================================")
