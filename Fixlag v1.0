@@ -1,0 +1,100 @@
+-- ============================================
+-- Script fix lag Roblox: Xóa trời, đổi màu xám
+-- Dành cho Studio / Executor (không hỗ trợ Client-side)
+-- ============================================
+
+-- 1. Xóa toàn bộ đối tượng thuộc lớp "Sky" và "Atmosphere"
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("Sky") or obj:IsA("Atmosphere") then
+        obj:Destroy()
+    end
+end
+
+-- 2. Tìm Lighting, tắt hiệu ứng thời tiết và màu sắc
+local lighting = game:GetService("Lighting")
+lighting.Brightness = 0
+lighting.Ambient = Color3.new(0.5, 0.5, 0.5)
+lighting.OutdoorAmbient = Color3.new(0.5, 0.5, 0.5)
+lighting.TimeOfDay = "12:00:00"
+lighting.GlobalShadows = false
+lighting.FogEnd = 100000
+lighting.FogStart = 100000
+lighting.ClockTime = 12
+
+-- 3. Đổi màu nền (BackgroundColor) sang xám
+lighting.BackgroundColor = Color3.new(0.5, 0.5, 0.5)
+
+-- 4. Xóa tất cả ParticleEmitter, Trail, Beam, Smoke, Fire
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or 
+       obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+        obj.Enabled = false
+        obj:Destroy()
+    end
+end
+
+-- 5. Tắt hiệu ứng PostProcessing (Bloom, ColorCorrection, SunRays)
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("BloomEffect") or obj:IsA("ColorCorrectionEffect") or 
+       obj:IsA("SunRaysEffect") or obj:IsA("BlurEffect") or obj:IsA("DepthOfFieldEffect") then
+        obj.Enabled = false
+        obj:Destroy()
+    end
+end
+
+-- 6. Giảm chất lượng Terrain (nếu có)
+local terrain = workspace:FindFirstChild("Terrain")
+if terrain then
+    terrain.WaterColor = Color3.new(0.5, 0.5, 0.5)
+    terrain.WaterReflectance = 0
+    terrain.WaterTransparency = 1
+    terrain.Material = Enum.Material.SmoothPlastic
+end
+
+-- 7. Xóa các Decal và Texture trên toàn bộ Part (giữ nguyên hình hộp)
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("BasePart") then
+        for _, dec in ipairs(obj:GetChildren()) do
+            if dec:IsA("Decal") or dec:IsA("Texture") then
+                dec:Destroy()
+            end
+        end
+        -- Đổi màu Part sang xám (nếu không phải Player)
+        if not obj:IsA("Humanoid") and not obj.Parent:IsA("Player") then
+            obj.Color = Color3.new(0.5, 0.5, 0.5)
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Reflectance = 0
+            obj.Transparency = 0
+        end
+    end
+end
+
+-- 8. Tối ưu Physics (giảm tần suất tính toán)
+game:GetService("RunService").Stepped:Wait()
+game:GetService("PhysicsService").SetGravityEnabled(false)
+workspace.Gravity = 0
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("BasePart") and obj.CanCollide == true then
+        obj.CanCollide = false
+    end
+end
+
+-- 9. Xóa mọi hiệu ứng ánh sáng điểm, đèn chiếu
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+        obj:Destroy()
+    end
+end
+
+-- 10. Vô hiệu hóa Animation và Sounds (tùy chọn)
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("Animator") then
+        obj:Destroy()
+    end
+    if obj:IsA("Sound") then
+        obj:Stop()
+        obj:Destroy()
+    end
+end
+
+print("Fix lag hoàn tất - Trời đã xóa, màu xám toàn bộ.") 
