@@ -1,0 +1,409 @@
+--[[
+    MỞ RỘNG BANANA HUB - FARM KIỂU BAY TRÊN ĐẦU QUÁI
+    Tính năng: Bay lên đầu quái, tăng tầm đánh, tăng tốc độ đánh
+    Tác giả: palofsc
+    Yêu cầu: Script Banana Hub đã chạy trước đó
+]]
+
+-- Kiểm tra nếu Window đã tồn tại từ script Banana Hub gốc
+if not Window then
+    local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+    Window = Rayfield:CreateWindow({
+       Name = "Banana Hub | Blox Fruits",
+       LoadingTitle = "Banana Hub",
+       LoadingSubtitle = "by palofsc",
+       ConfigurationSaving = {
+          Enabled = true,
+          FolderName = "BananaHub_Config",
+          FileName = "BananaHub_Settings"
+       },
+       Discord = {
+          Enabled = false,
+          Invite = "",
+          RememberJoins = true
+       },
+       KeySystem = false,
+       KeySettings = {
+          Title = "Key",
+          Subtitle = "Nhập Key",
+          Note = "Nhập key để sử dụng",
+          FileName = "BananaHubKey",
+          SaveKey = true,
+          GrabKeyFromSite = false,
+          Key = {"BananaHub2024"}
+       }
+    })
+end
+
+-- Tạo tab Farm Kiểu Bay mới trong cửa sổ Banana Hub
+local FlyFarmTab = Window:CreateTab("🦅 Bay Farm", 4483362458)
+
+-- Section Cấu hình bay
+local FlyConfigSection = FlyFarmTab:CreateSection("Cấu hình bay")
+
+-- Toggle bật/tắt Auto Farm kiểu bay
+local FlyFarmToggle = FlyFarmTab:CreateToggle({
+   Name = "Auto Farm Kiểu Bay",
+   CurrentValue = false,
+   Flag = "FlyFarmMode",
+   Callback = function(Value)
+       _G.FlyFarmMode = Value
+       if _G.FlyFarmMode then
+           spawn(function()
+               -- Vòng lặp chính của farm kiểu bay
+               while _G.FlyFarmMode do
+                   pcall(function()
+                       local player = game.Players.LocalPlayer
+                       local character = player.Character or player.CharacterAdded:Wait()
+                       local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+                       local humanoid = character:WaitForChild("Humanoid")
+                       
+                       -- Tìm quái gần nhất
+                       local nearestEnemy = nil
+                       local nearestDistance = math.huge
+                       
+                       for _, enemy in pairs(game.Workspace.Enemies:GetChildren()) do
+                           if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                               if enemy:FindFirstChild("HumanoidRootPart") then
+                                   local distance = (humanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+                                   if distance <= _G.FarmRadius then
+                                       if distance < nearestDistance then
+                                           nearestDistance = distance
+                                           nearestEnemy = enemy
+                                       end
+                                   end
+                               end
+                           end
+                       end
+                       
+                       if nearestEnemy then
+                           -- Bật bay cho nhân vật
+                           if not humanoidRootPart:FindFirstChild("BodyVelocity") then
+                               local bodyVelocity = Instance.new("BodyVelocity")
+                               bodyVelocity.Name = "FlyVelocity"
+                               bodyVelocity.MaxForce = Vector3.new(1, 1, 1) * math.huge
+                               bodyVelocity.Parent = humanoidRootPart
+                           end
+                           
+                           if not humanoidRootPart:FindFirstChild("BodyGyro") then
+                               local bodyGyro = Instance.new("BodyGyro")
+                               bodyGyro.Name = "FlyGyro"
+                               bodyGyro.MaxTorque = Vector3.new(1, 1, 1) * math.huge
+                               bodyGyro.CFrame = humanoidRootPart.CFrame
+                               bodyGyro.Parent = humanoidRootPart
+                           end
+                           
+                           -- Tính toán vị trí bay phía trên đầu quái
+                           local flyHeight = _G.FlyHeightOffset or 15
+                           local targetPosition = nearestEnemy.HumanoidRootPart.Position + Vector3.new(0, flyHeight, 0)
+                           
+                           -- Di chuyển đến vị trí phía trên đầu quái
+                           humanoidRootPart.CFrame = CFrame.new(
+                               targetPosition,
+                               nearestEnemy.HumanoidRootPart.Position
+                           )
+                           
+                           -- Cập nhật BodyVelocity để giữ vị trí
+                           local flyVelocity = humanoidRootPart:FindFirstChild("FlyVelocity")
+                           if flyVelocity then
+                               flyVelocity.Velocity = Vector3.new(0, 0.1, 0) -- Giữ độ cao ổn định
+                           end
+                           
+                           -- Cập nhật BodyGyro để nhìn xuống quái
+                           local flyGyro = humanoidRootPart:FindFirstChild("FlyGyro")
+                           if flyGyro then
+                               flyGyro.CFrame = CFrame.new(
+                                   humanoidRootPart.Position,
+                                   nearestEnemy.HumanoidRootPart.Position
+                               )
+                           end
+                           
+                           -- Tự động trang bị vũ khí có tầm đánh xa nhất
+                           local bestTool = nil
+                           local bestRange = 0
+                           local attackRangeMultiplier = _G.AttackRangeMultiplier or 3
+                           
+                           for _, tool in pairs(character:GetChildren()) do
+                               if tool:IsA("Tool") and tool:FindFirstChild("Handle") then
+                                   local toolRange = (tool.Handle.Position - humanoidRootPart.Position).Magnitude
+                                   if toolRange > bestRange then
+                                       bestRange = toolRange
+                                       bestTool = tool
+                                   end
+                               end
+                           end
+                           
+                           -- Trang bị vũ khí tốt nhất
+                           if bestTool and character:FindFirstChildOfClass("Tool") ~= bestTool then
+                               humanoid:EquipTool(bestTool)
+                           end
+                           
+                           -- Tấn công với tốc độ đánh được cấu hình
+                           local currentTool = character:FindFirstChildOfClass("Tool")
+                           if currentTool then
+                               local attackDelay = _G.AttackSpeed or 0.01
+                               
+                               -- Kích hoạt tấn công
+                               currentTool:Activate()
+                               
+                               -- Gửi sự kiện tấn công qua Remote để tăng tầm đánh
+                               local attackArgs = {
+                                   [1] = nearestEnemy.HumanoidRootPart.Position,
+                                   [2] = nearestEnemy
+                               }
+                               
+                               -- Tăng tầm đánh bằng cách chỉnh sửa Hitbox
+                               pcall(function()
+                                   -- Mở rộng hitbox của vũ khí
+                                   local handle = currentTool:FindFirstChild("Handle")
+                                   if handle then
+                                       handle.Size = Vector3.new(
+                                           handle.Size.X * attackRangeMultiplier,
+                                           handle.Size.Y * attackRangeMultiplier,
+                                           handle.Size.Z * attackRangeMultiplier
+                                       )
+                                       handle.Transparency = 0.7
+                                       handle.Massless = true
+                                       handle.CanCollide = false
+                                   end
+                               end)
+                               
+                               -- Tấn công liên tục với tốc độ cao
+                               for i = 1, 5 do
+                                   pcall(function()
+                                       game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
+                                           "Hit", "Melee", nearestEnemy
+                                       )
+                                   end)
+                                   wait(attackDelay / 5)
+                               end
+                               
+                               wait(attackDelay)
+                           end
+                       end
+                   end)
+                   wait(0.001) -- Tốc độ vòng lặp cực nhanh
+               end
+           end)
+       end
+   end
+})
+
+-- Slider độ cao bay
+local FlyHeightSlider = FlyFarmTab:CreateSlider({
+   Name = "Độ cao bay (phía trên quái)",
+   Range = {5, 50},
+   Increment = 1,
+   Suffix = "Studs",
+   CurrentValue = 15,
+   Flag = "FlyHeight",
+   Callback = function(Value)
+       _G.FlyHeightOffset = Value
+   end
+})
+
+-- Slider bán kính farm
+local FarmRadiusSlider = FlyFarmTab:CreateSlider({
+   Name = "Bán kính tìm quái",
+   Range = {50, 500},
+   Increment = 10,
+   Suffix = "Studs",
+   CurrentValue = 200,
+   Flag = "FarmRadius",
+   Callback = function(Value)
+       _G.FarmRadius = Value
+   end
+})
+
+-- Section Tăng tầm đánh & tốc độ
+local AttackConfigSection = FlyFarmTab:CreateSection("Tăng tầm & tốc độ đánh")
+
+-- Slider tăng tầm đánh
+local AttackRangeSlider = FlyFarmTab:CreateSlider({
+   Name = "Hệ số tầm đánh (Hitbox Multiplier)",
+   Range = {1, 10},
+   Increment = 0.5,
+   Suffix = "x",
+   CurrentValue = 3,
+   Flag = "AttackRange",
+   Callback = function(Value)
+       _G.AttackRangeMultiplier = Value
+       -- Cập nhật hitbox ngay lập tức
+       spawn(function()
+           pcall(function()
+               local player = game.Players.LocalPlayer
+               local character = player.Character
+               if character then
+                   local tool = character:FindFirstChildOfClass("Tool")
+                   if tool and tool:FindFirstChild("Handle") then
+                       tool.Handle.Size = Vector3.new(
+                           tool.Handle.Size.X * Value,
+                           tool.Handle.Size.Y * Value,
+                           tool.Handle.Size.Z * Value
+                       )
+                       tool.Handle.Transparency = 0.7
+                       tool.Handle.Massless = true
+                       tool.Handle.CanCollide = false
+                   end
+               end
+           end)
+       end)
+   end
+})
+
+-- Slider tốc độ đánh
+local AttackSpeedSlider = FlyFarmTab:CreateSlider({
+   Name = "Tốc độ đánh (Delay giữa các đòn)",
+   Range = {0.001, 0.5},
+   Increment = 0.001,
+   Suffix = "s",
+   CurrentValue = 0.01,
+   Flag = "AttackSpeed",
+   Callback = function(Value)
+       _G.AttackSpeed = Value
+   end
+})
+
+-- Section Tự động chọn vũ khí
+local WeaponSection = FlyFarmTab:CreateSection("Tự động chọn vũ khí")
+
+-- Toggle tự động chọn vũ khí tốt nhất
+local AutoWeaponToggle = FlyFarmTab:CreateToggle({
+   Name = "Tự động chọn vũ khí tầm xa nhất",
+   CurrentValue = true,
+   Flag = "AutoBestWeapon",
+   Callback = function(Value)
+       _G.AutoBestWeapon = Value
+   end
+})
+
+-- Toggle tự động mua vũ khí nếu chưa có
+local AutoBuyWeaponToggle = FlyFarmTab:CreateToggle({
+   Name = "Tự động mua vũ khí nếu chưa có",
+   CurrentValue = false,
+   Flag = "AutoBuyWeapon",
+   Callback = function(Value)
+       _G.AutoBuyWeapon = Value
+   end
+})
+
+-- Section An toàn khi bay
+local SafetySection = FlyFarmTab:CreateSection("An toàn")
+
+-- Toggle tự động né tránh sát thương
+local AutoDodgeToggle = FlyFarmTab:CreateToggle({
+   Name = "Tự động né tránh (Invincibility Frame)",
+   CurrentValue = false,
+   Flag = "AutoDodge",
+   Callback = function(Value)
+       _G.AutoDodge = Value
+       if _G.AutoDodge then
+           spawn(function()
+               while _G.AutoDodge do
+                   pcall(function()
+                       local player = game.Players.LocalPlayer
+                       local character = player.Character
+                       if character and character:FindFirstChild("Humanoid") then
+                           -- Tạo i-frame bằng cách tăng tốc di chuyển cực nhanh trong thời gian ngắn
+                           local humanoid = character.Humanoid
+                           -- Vô hiệu hóa sát thương
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+                       end
+                   end)
+                   wait(0.1)
+               end
+           end)
+       end
+   end
+})
+
+-- Toggle chống rơi khi tắt bay
+local AntiFallToggle = FlyFarmTab:CreateToggle({
+   Name = "Chống rơi khi tắt farm",
+   CurrentValue = true,
+   Flag = "AntiFall",
+   Callback = function(Value)
+       _G.AntiFall = Value
+       if _G.AntiFall then
+           -- Tạo sự kiện khi tắt farm để hạ cánh an toàn
+           local oldValue = _G.FlyFarmMode
+           spawn(function()
+               while true do
+                   if oldValue == true and _G.FlyFarmMode == false then
+                       -- Khi tắt farm, hạ cánh từ từ
+                       pcall(function()
+                           local player = game.Players.LocalPlayer
+                           local character = player.Character
+                           if character then
+                               local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                               if humanoidRootPart then
+                                   -- Hạ cánh an toàn
+                                   local raycastParams = RaycastParams.new()
+                                   raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                                   raycastParams.FilterDescendantsInstances = {character}
+                                   
+                                   local raycastResult = workspace:Raycast(
+                                       humanoidRootPart.Position,
+                                       Vector3.new(0, -500, 0),
+                                       raycastParams
+                                   )
+                                   
+                                   if raycastResult then
+                                       humanoidRootPart.CFrame = CFrame.new(
+                                           raycastResult.Position + Vector3.new(0, 3, 0)
+                                       )
+                                   end
+                                   
+                                   -- Xóa BodyVelocity và BodyGyro
+                                   if humanoidRootPart:FindFirstChild("FlyVelocity") then
+                                       humanoidRootPart.FlyVelocity:Destroy()
+                                   end
+                                   if humanoidRootPart:FindFirstChild("FlyGyro") then
+                                       humanoidRootPart.FlyGyro:Destroy()
+                                   end
+                               end
+                           end
+                       end)
+                   end
+                   oldValue = _G.FlyFarmMode
+                   wait(0.5)
+               end
+           end)
+       end
+   end
+})
+
+-- Nút dừng tất cả
+local StopAllButton = FlyFarmTab:CreateButton({
+   Name = "DỪNG TẤT CẢ",
+   Callback = function()
+       _G.FlyFarmMode = false
+       _G.AutoDodge = false
+       pcall(function()
+           local player = game.Players.LocalPlayer
+           local character = player.Character
+           if character then
+               local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+               if humanoidRootPart then
+                   if humanoidRootPart:FindFirstChild("FlyVelocity") then
+                       humanoidRootPart.FlyVelocity:Destroy()
+                   end
+                   if humanoidRootPart:FindFirstChild("FlyGyro") then
+                       humanoidRootPart.FlyGyro:Destroy()
+                   end
+               end
+           end
+       end)
+   end
+})
+
+-- Cập nhật giao diện
+Rayfield:LoadConfiguration()
+
+-- Thông báo
+local Notification = loadstring(game:HttpGet("https://api.voidscripts.com/UI/Notify.lua"))()
+Notification.new("success", "Bay Farm Mode đã được thêm vào Banana Hub!", 5)
+
+print("Banana Hub - Bay Farm Extension by palofsc đã sẵn sàng!")
+print("Tính năng: Bay trên đầu quái + Tăng tầm đánh + Tăng tốc độ đánh")
