@@ -1,8 +1,14 @@
 --[[
-    MỞ RỘNG BANANA HUB - FAST ATTACK NO ANIMATION
-    Tính năng: Tấn công cực nhanh không hoạt ảnh, bỏ qua giới hạn
+    BANANA HUB - AUTO FARM TỔNG HỢP TẤT CẢ TÍNH NĂNG
+    Một nút Auto Farm duy nhất tự động kích hoạt:
+    1. Bay lên đầu quái
+    2. Tấn công không animation (Fast Attack No Animation)
+    3. Bring Mob - Kéo tất cả quái về vị trí
+    4. Tự động chọn vũ khí tầm xa nhất
+    5. Tăng tầm đánh và tốc độ đánh
+    
     Tác giả: palofsc
-    Tích hợp trực tiếp vào Banana Hub đã có
+    Tích hợp hoàn chỉnh vào Banana Hub
 ]]
 
 -- Kiểm tra và tạo Window nếu chưa tồn tại
@@ -35,26 +41,317 @@ if not Window then
     })
 end
 
--- Tạo tab Fast Attack No Animation trong Banana Hub
-local FastAttackTab = Window:CreateTab("⚡ NoAnim", 4483362458)
+-- Tab Auto Farm Tổng Hợp
+local AutoFarmTab = Window:CreateTab("🏠 Auto Farm", 4483362458)
 
--- Section Chính - Fast Attack
-local MainSection = FastAttackTab:CreateSection("Fast Attack No Animation")
+-- Section Cấu hình Auto Farm Tổng Hợp
+local ConfigSection = AutoFarmTab:CreateSection("Cấu hình Auto Farm Tổng Hợp")
 
--- Toggle chính bật/tắt Fast Attack No Animation
-local FastAttackToggle = FastAttackTab:CreateToggle({
-   Name = "Fast Attack No Animation",
-   CurrentValue = false,
-   Flag = "FastAttackNoAnim",
+-- Slider bán kính quét quái
+local FarmRadiusSlider = AutoFarmTab:CreateSlider({
+   Name = "Bán kính quét quái",
+   Range = {50, 1000},
+   Increment = 10,
+   Suffix = "Studs",
+   CurrentValue = 300,
+   Flag = "FarmRadius",
    Callback = function(Value)
-       _G.FastAttackNoAnim = Value
-       if _G.FastAttackNoAnim then
+       _G.FarmRadius = Value
+   end
+})
+
+-- Slider độ cao bay trên đầu quái
+local FlyHeightSlider = AutoFarmTab:CreateSlider({
+   Name = "Độ cao bay trên đầu quái",
+   Range = {3, 50},
+   Increment = 1,
+   Suffix = "Studs",
+   CurrentValue = 15,
+   Flag = "FlyHeight",
+   Callback = function(Value)
+       _G.FlyHeightOffset = Value
+   end
+})
+
+-- Slider tầm đánh mở rộng
+local AttackRangeSlider = AutoFarmTab:CreateSlider({
+   Name = "Hệ số mở rộng tầm đánh",
+   Range = {1, 15},
+   Increment = 0.5,
+   Suffix = "x",
+   CurrentValue = 5,
+   Flag = "AttackRangeMulti",
+   Callback = function(Value)
+       _G.AttackRangeMultiplier = Value
+   end
+})
+
+-- Slider tốc độ đánh
+local AttackSpeedSlider = AutoFarmTab:CreateSlider({
+   Name = "Tốc độ đánh (độ trễ)",
+   Range = {0.0001, 0.1},
+   Increment = 0.0001,
+   Suffix = "s",
+   CurrentValue = 0.001,
+   Flag = "AttackSpeedDelay",
+   Callback = function(Value)
+       _G.AttackSpeedDelay = Value
+   end
+})
+
+-- Slider số đòn đánh thêm mỗi tick
+local ExtraHitsSlider = AutoFarmTab:CreateSlider({
+   Name = "Số đòn đánh thêm mỗi tick",
+   Range = {1, 30},
+   Increment = 1,
+   Suffix = "đòn",
+   CurrentValue = 10,
+   Flag = "ExtraHitsPerTick",
+   Callback = function(Value)
+       _G.ExtraHitsPerTick = Value
+   end
+})
+
+-- Slider tốc độ kéo quái
+local PullSpeedSlider = AutoFarmTab:CreateSlider({
+   Name = "Tốc độ kéo quái",
+   Range = {10, 500},
+   Increment = 10,
+   Suffix = "Studs/s",
+   CurrentValue = 100,
+   Flag = "PullSpeed",
+   Callback = function(Value)
+       _G.PullSpeed = Value
+   end
+})
+
+-- Section Toggle phụ trợ
+local ToggleSection = AutoFarmTab:CreateSection("Tùy chọn bổ sung")
+
+-- Toggle bật/tắt vô hiệu AI quái
+local DisableAIToggle = AutoFarmTab:CreateToggle({
+   Name = "Vô hiệu AI quái (đứng yên)",
+   CurrentValue = true,
+   Flag = "DisableMobAI",
+   Callback = function(Value)
+       _G.DisableMobAI = Value
+   end
+})
+
+-- Toggle bật/tắt tự động nhặt đồ
+local AutoCollectToggle = AutoFarmTab:CreateToggle({
+   Name = "Tự động nhặt đồ",
+   CurrentValue = true,
+   Flag = "AutoCollectLoot",
+   Callback = function(Value)
+       _G.AutoCollectLoot = Value
+   end
+})
+
+-- Toggle bật/tắt chống AFK
+local AntiAFKToggle = AutoFarmTab:CreateToggle({
+   Name = "Chống AFK",
+   CurrentValue = true,
+   Flag = "AntiAFK",
+   Callback = function(Value)
+       _G.AntiAFK = Value
+       if _G.AntiAFK then
            spawn(function()
-               -- Ghi đè hàm Animation gốc
-               local oldPlay = game.Players.LocalPlayer.Character.Humanoid.Animator.Play
+               local vu = game:GetService("VirtualUser")
+               game.Players.LocalPlayer.Idled:Connect(function()
+                   vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+                   wait(1)
+                   vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+               end)
+           end)
+       end
+   end
+})
+
+-- ============================================
+-- NÚT AUTO FARM DUY NHẤT - TÍCH HỢP TẤT CẢ
+-- ============================================
+local MasterAutoFarmToggle = AutoFarmTab:CreateToggle({
+   Name = "⚡ AUTO FARM TỔNG HỢP (Bay + No Anim + Bring Mob)",
+   CurrentValue = false,
+   Flag = "MasterAutoFarm",
+   Callback = function(Value)
+       _G.MasterAutoFarm = Value
+       
+       if _G.MasterAutoFarm then
+           -- ============================================
+           -- KHỞI ĐỘNG TẤT CẢ CÁC LUỒNG CÙNG LÚC
+           -- ============================================
+           
+           -- Luồng 1: Bay lên đầu quái + Bring Mob + Di chuyển
+           spawn(function()
+               while _G.MasterAutoFarm do
+                   pcall(function()
+                       local player = game.Players.LocalPlayer
+                       local character = player.Character or player.CharacterAdded:Wait()
+                       local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+                       local humanoid = character:WaitForChild("Humanoid")
+                       
+                       -- Lấy vị trí người chơi
+                       local playerPosition = humanoidRootPart.Position
+                       local farmRadius = _G.FarmRadius or 300
+                       local flyHeight = _G.FlyHeightOffset or 15
+                       local pullSpeed = _G.PullSpeed or 100
+                       
+                       -- Tìm quái gần nhất để bay đến
+                       local nearestEnemy = nil
+                       local nearestDistance = math.huge
+                       local allEnemiesInRange = {}
+                       
+                       for _, enemy in pairs(game.Workspace.Enemies:GetChildren()) do
+                           if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                               if enemy:FindFirstChild("HumanoidRootPart") then
+                                   local enemyPosition = enemy.HumanoidRootPart.Position
+                                   local distance = (playerPosition - enemyPosition).Magnitude
+                                   
+                                   if distance <= farmRadius then
+                                       -- Thêm vào danh sách quái trong phạm vi
+                                       table.insert(allEnemiesInRange, enemy)
+                                       
+                                       -- Vô hiệu AI quái nếu bật
+                                       if _G.DisableMobAI then
+                                           pcall(function()
+                                               enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+                                               enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+                                               enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+                                               enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+                                               enemy.Humanoid.WalkSpeed = 0
+                                               enemy.Humanoid.JumpPower = 0
+                                           end)
+                                       end
+                                       
+                                       -- BRING MOB: Kéo quái về phía người chơi
+                                       if distance > 15 then
+                                           -- Sử dụng BodyVelocity để kéo quái
+                                           local bodyVelocity = enemy.HumanoidRootPart:FindFirstChild("PullVelocity")
+                                           if not bodyVelocity then
+                                               bodyVelocity = Instance.new("BodyVelocity")
+                                               bodyVelocity.Name = "PullVelocity"
+                                               bodyVelocity.MaxForce = Vector3.new(1, 1, 1) * math.huge
+                                               bodyVelocity.P = 100000
+                                               bodyVelocity.Parent = enemy.HumanoidRootPart
+                                           end
+                                           
+                                           -- Tính hướng kéo về người chơi
+                                           local direction = (playerPosition - enemyPosition).Unit
+                                           local velocity = direction * pullSpeed
+                                           velocity = Vector3.new(velocity.X, flyHeight * 3, velocity.Z)
+                                           bodyVelocity.Velocity = velocity
+                                       else
+                                           -- Nếu đã gần, xóa BodyVelocity để quái đứng yên
+                                           if enemy.HumanoidRootPart:FindFirstChild("PullVelocity") then
+                                               enemy.HumanoidRootPart.PullVelocity:Destroy()
+                                           end
+                                           enemy.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                                       end
+                                       
+                                       -- Tìm quái gần nhất để bay đến
+                                       if distance < nearestDistance then
+                                           nearestDistance = distance
+                                           nearestEnemy = enemy
+                                       end
+                                   else
+                                       -- Xóa BodyVelocity cho quái ngoài phạm vi
+                                       if enemy.HumanoidRootPart:FindFirstChild("PullVelocity") then
+                                           enemy.HumanoidRootPart.PullVelocity:Destroy()
+                                       end
+                                   end
+                               end
+                           end
+                       end
+                       
+                       -- BAY LÊN ĐẦU QUÁI GẦN NHẤT
+                       if nearestEnemy then
+                           -- Kích hoạt bay
+                           if not humanoidRootPart:FindFirstChild("FlyVelocity") then
+                               local bodyVelocity = Instance.new("BodyVelocity")
+                               bodyVelocity.Name = "FlyVelocity"
+                               bodyVelocity.MaxForce = Vector3.new(1, 1, 1) * math.huge
+                               bodyVelocity.P = 100000
+                               bodyVelocity.Parent = humanoidRootPart
+                           end
+                           
+                           if not humanoidRootPart:FindFirstChild("FlyGyro") then
+                               local bodyGyro = Instance.new("BodyGyro")
+                               bodyGyro.Name = "FlyGyro"
+                               bodyGyro.MaxTorque = Vector3.new(1, 1, 1) * math.huge
+                               bodyGyro.CFrame = humanoidRootPart.CFrame
+                               bodyGyro.Parent = humanoidRootPart
+                           end
+                           
+                           -- Bay đến vị trí trên đầu quái gần nhất
+                           local targetFlyPosition = nearestEnemy.HumanoidRootPart.Position + Vector3.new(0, flyHeight, 0)
+                           local flyVelocity = humanoidRootPart:FindFirstChild("FlyVelocity")
+                           if flyVelocity then
+                               local directionToTarget = (targetFlyPosition - humanoidRootPart.Position).Unit
+                               local distanceToTarget = (targetFlyPosition - humanoidRootPart.Position).Magnitude
+                               flyVelocity.Velocity = directionToTarget * math.min(distanceToTarget * 10, 200)
+                           end
+                           
+                           -- Cập nhật BodyGyro để nhìn xuống
+                           local flyGyro = humanoidRootPart:FindFirstChild("FlyGyro")
+                           if flyGyro then
+                               flyGyro.CFrame = CFrame.new(
+                                   humanoidRootPart.Position,
+                                   nearestEnemy.HumanoidRootPart.Position
+                               )
+                           end
+                           
+                           -- Dịch chuyển nhanh nếu cần (khi quá xa)
+                           if nearestDistance > 100 then
+                               humanoidRootPart.CFrame = CFrame.new(
+                                   targetFlyPosition,
+                                   nearestEnemy.HumanoidRootPart.Position
+                               )
+                           end
+                       end
+                   end)
+                   wait(0.01)
+               end
                
-               -- Vô hiệu hóa tất cả animation
-               local function disableAnimations()
+               -- Khi tắt: dọn dẹp
+               pcall(function()
+                   local player = game.Players.LocalPlayer
+                   local character = player.Character
+                   if character then
+                       local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                       if humanoidRootPart then
+                           if humanoidRootPart:FindFirstChild("FlyVelocity") then
+                               humanoidRootPart.FlyVelocity:Destroy()
+                           end
+                           if humanoidRootPart:FindFirstChild("FlyGyro") then
+                               humanoidRootPart.FlyGyro:Destroy()
+                           end
+                       end
+                   end
+                   -- Dọn BodyVelocity quái
+                   for _, enemy in pairs(game.Workspace.Enemies:GetChildren()) do
+                       if enemy:FindFirstChild("HumanoidRootPart") then
+                           if enemy.HumanoidRootPart:FindFirstChild("PullVelocity") then
+                               enemy.HumanoidRootPart.PullVelocity:Destroy()
+                           end
+                           if enemy:FindFirstChild("Humanoid") then
+                               enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+                               enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
+                               enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                               enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+                               enemy.Humanoid.WalkSpeed = 16
+                               enemy.Humanoid.JumpPower = 50
+                           end
+                       end
+                   end
+               end)
+           end)
+           
+           -- Luồng 2: Fast Attack No Animation + Tăng tầm đánh
+           spawn(function()
+               -- Vô hiệu hóa animation vĩnh viễn trong luồng này
+               local function disableAllAnimations()
                    pcall(function()
                        local player = game.Players.LocalPlayer
                        local character = player.Character
@@ -62,31 +359,31 @@ local FastAttackToggle = FastAttackTab:CreateToggle({
                            local humanoid = character.Humanoid
                            local animator = humanoid:FindFirstChild("Animator")
                            if animator then
-                               -- Ngăn chặn animation play
+                               -- Dừng tất cả animation đang chạy
                                for _, track in pairs(animator:GetPlayingAnimationTracks()) do
                                    track:Stop(0)
                                end
-                               -- Ghi đè phương thức LoadAnimation
-                               animator.LoadAnimation = function(self, animation)
-                                   local track = Instance.new("AnimationTrack")
-                                   track.Length = 0
-                                   track.IsPlaying = false
-                                   track.Speed = 0
-                                   track.TimePosition = 0
-                                   track.Looped = false
-                                   track.Priority = Enum.AnimationPriority.Idle
-                                   track.WeightCurrent = 0
-                                   track.WeightTarget = 0
-                                   track.Animation = animation
-                                   return track
-                               end
                            end
+                           -- Vô hiệu tất cả state
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
                        end
                    end)
                end
                
-               -- Hàm tấn công nhanh không animation
-               local function fastAttack()
+               local lastAttackTime = 0
+               
+               while _G.MasterAutoFarm do
                    pcall(function()
                        local player = game.Players.LocalPlayer
                        local character = player.Character
@@ -95,144 +392,90 @@ local FastAttackToggle = FastAttackTab:CreateToggle({
                        local humanoid = character:FindFirstChild("Humanoid")
                        if not humanoid then return end
                        
-                       local tool = character:FindFirstChildOfClass("Tool")
-                       if not tool then return end
+                       -- Tự động chọn và trang bị vũ khí tầm xa nhất
+                       local bestTool = nil
+                       local bestRange = 0
                        
-                       -- Dừng tất cả animation đang chạy
-                       local animator = humanoid:FindFirstChild("Animator")
-                       if animator then
-                           for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-                               track:Stop(0)
-                           end
-                       end
-                       
-                       -- Lấy vị trí của tool handle
-                       local handle = tool:FindFirstChild("Handle")
-                       if not handle then return end
-                       
-                       -- Tạo hitbox ảo không cần animation
-                       local attackHitbox = Instance.new("Part")
-                       attackHitbox.Name = "FastAttackHitbox"
-                       attackHitbox.Size = Vector3.new(
-                           _G.HitboxSizeX or 10,
-                           _G.HitboxSizeY or 10,
-                           _G.HitboxSizeZ or 10
-                       )
-                       attackHitbox.Transparency = 1
-                       attackHitbox.CanCollide = false
-                       attackHitbox.Anchored = false
-                       attackHitbox.Parent = character
-                       
-                       -- Weld hitbox vào handle
-                       local weld = Instance.new("WeldConstraint")
-                       weld.Part0 = attackHitbox
-                       weld.Part1 = handle
-                       weld.Parent = attackHitbox
-                       
-                       -- Gửi tín hiệu tấn công qua Remote
-                       local attackTypes = {
-                           "Melee",
-                           "Sword", 
-                           "Gun",
-                           "Blox Fruit"
-                       }
-                       
-                       local selectedAttackType = _G.SelectedAttackType or "Melee"
-                       
-                       -- Tấn công không animation
-                       for _, enemy in pairs(game.Workspace.Enemies:GetChildren()) do
-                           if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                               if enemy:FindFirstChild("HumanoidRootPart") then
-                                   local distance = (handle.Position - enemy.HumanoidRootPart.Position).Magnitude
-                                   local maxRange = _G.MaxAttackRange or 50
-                                   
-                                   if distance <= maxRange then
-                                       -- Gửi damage mà không cần animation
-                                       pcall(function()
-                                           game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
-                                               "Hit",
-                                               selectedAttackType,
-                                               enemy
-                                           )
-                                       end)
-                                   end
+                       for _, tool in pairs(character:GetChildren()) do
+                           if tool:IsA("Tool") and tool:FindFirstChild("Handle") then
+                               local toolRange = tool.Handle.Size.Magnitude
+                               if toolRange > bestRange then
+                                   bestRange = toolRange
+                                   bestTool = tool
                                end
                            end
                        end
                        
-                       -- Xóa hitbox sau khi tấn công
-                       wait(_G.AttackCooldown or 0.001)
-                       pcall(function()
-                           attackHitbox:Destroy()
-                       end)
-                   end)
-               end
-               
-               -- Vòng lặp chính
-               local lastAttackTime = 0
-               local attackDelay = _G.AttackDelayNoAnim or 0.001
-               
-               while _G.FastAttackNoAnim do
-                   local currentTime = tick()
-                   if currentTime - lastAttackTime >= attackDelay then
-                       disableAnimations()
-                       fastAttack()
-                       lastAttackTime = currentTime
+                       -- Trang bị vũ khí tốt nhất
+                       if bestTool and character:FindFirstChildOfClass("Tool") ~= bestTool then
+                           humanoid:EquipTool(bestTool)
+                       end
                        
-                       -- Tấn công thêm nhiều lần trong một tick
-                       local extraAttacks = _G.ExtraAttacksPerTick or 5
-                       for i = 1, extraAttacks do
-                           pcall(function()
-                               local player = game.Players.LocalPlayer
-                               local character = player.Character
-                               if character then
-                                   local humanoid = character:FindFirstChild("Humanoid")
-                                   if humanoid then
-                                       -- Vô hiệu hóa state machine
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-                                       humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
-                                       
-                                       -- Reset animation tracks
-                                       local animator = humanoid:FindFirstChild("Animator")
-                                       if animator then
-                                           for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-                                               track:Stop(0)
-                                               track:Destroy()
-                                           end
+                       -- Mở rộng hitbox vũ khí
+                       local currentTool = character:FindFirstChildOfClass("Tool")
+                       if currentTool and currentTool:FindFirstChild("Handle") then
+                           local handle = currentTool.Handle
+                           local multiplier = _G.AttackRangeMultiplier or 5
+                           handle.Size = Vector3.new(
+                               handle.Size.X * multiplier,
+                               handle.Size.Y * multiplier,
+                               handle.Size.Z * multiplier
+                           )
+                           handle.Transparency = 0.7
+                           handle.Massless = true
+                           handle.CanCollide = false
+                       end
+                       
+                       -- Vô hiệu animation
+                       disableAllAnimations()
+                       
+                       -- Tấn công tất cả quái trong phạm vi
+                       local attackDelay = _G.AttackSpeedDelay or 0.001
+                       local currentTime = tick()
+                       
+                       if currentTime - lastAttackTime >= attackDelay then
+                           local extraHits = _G.ExtraHitsPerTick or 10
+                           
+                           for hit = 1, extraHits do
+                               for _, enemy in pairs(game.Workspace.Enemies:GetChildren()) do
+                                   if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                                       if enemy:FindFirstChild("HumanoidRootPart") then
+                                           -- Tấn công qua remote
+                                           pcall(function()
+                                               game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
+                                                   "Hit",
+                                                   "Melee",
+                                                   enemy
+                                               )
+                                               game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
+                                                   "Hit",
+                                                   "Sword",
+                                                   enemy
+                                               )
+                                           end)
                                        end
-                                       
-                                       -- Gửi thêm hit events
-                                       game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
-                                           "Hit",
-                                           _G.SelectedAttackType or "Melee",
-                                           game.Workspace.Enemies:FindFirstChildOfClass("Model")
-                                       )
                                    end
                                end
-                           end)
+                               
+                               -- Kích hoạt tool để tấn công
+                               if currentTool then
+                                   currentTool:Activate()
+                               end
+                           end
+                           
+                           lastAttackTime = currentTime
                        end
-                   end
-                   wait(0.0001) -- Tốc độ vòng lặp siêu nhanh
+                   end)
+                   wait(0.0001)
                end
                
-               -- Khôi phục khi tắt
+               -- Khôi phục animation khi tắt
                pcall(function()
                    local player = game.Players.LocalPlayer
                    local character = player.Character
                    if character then
                        local humanoid = character:FindFirstChild("Humanoid")
                        if humanoid then
-                           -- Khôi phục state
                            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
                            humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, true)
                            humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
@@ -249,190 +492,87 @@ local FastAttackToggle = FastAttackTab:CreateToggle({
                    end
                end)
            end)
-       end
-   end
-})
-
--- Slider độ trễ giữa các đòn đánh
-local AttackDelaySlider = FastAttackTab:CreateSlider({
-   Name = "Độ trễ tấn công",
-   Range = {0.0001, 0.1},
-   Increment = 0.0001,
-   Suffix = "s",
-   CurrentValue = 0.001,
-   Flag = "AttackDelay",
-   Callback = function(Value)
-       _G.AttackDelayNoAnim = Value
-   end
-})
-
--- Slider số đòn đánh thêm mỗi tick
-local ExtraAttacksSlider = FastAttackTab:CreateSlider({
-   Name = "Số đòn đánh thêm mỗi tick",
-   Range = {1, 20},
-   Increment = 1,
-   Suffix = "đòn",
-   CurrentValue = 5,
-   Flag = "ExtraAttacks",
-   Callback = function(Value)
-       _G.ExtraAttacksPerTick = Value
-   end
-})
-
--- Section Hitbox
-local HitboxSection = FastAttackTab:CreateSection("Cấu hình Hitbox")
-
--- Slider kích thước hitbox X
-local HitboxXSlider = FastAttackTab:CreateSlider({
-   Name = "Kích thước Hitbox X",
-   Range = {1, 50},
-   Increment = 1,
-   Suffix = "studs",
-   CurrentValue = 10,
-   Flag = "HitboxX",
-   Callback = function(Value)
-       _G.HitboxSizeX = Value
-   end
-})
-
--- Slider kích thước hitbox Y
-local HitboxYSlider = FastAttackTab:CreateSlider({
-   Name = "Kích thước Hitbox Y",
-   Range = {1, 50},
-   Increment = 1,
-   Suffix = "studs",
-   CurrentValue = 10,
-   Flag = "HitboxY",
-   Callback = function(Value)
-       _G.HitboxSizeY = Value
-   end
-})
-
--- Slider kích thước hitbox Z
-local HitboxZSlider = FastAttackTab:CreateSlider({
-   Name = "Kích thước Hitbox Z",
-   Range = {1, 50},
-   Increment = 1,
-   Suffix = "studs",
-   CurrentValue = 10,
-   Flag = "HitboxZ",
-   Callback = function(Value)
-       _G.HitboxSizeZ = Value
-   end
-})
-
--- Slider tầm tấn công tối đa
-local MaxRangeSlider = FastAttackTab:CreateSlider({
-   Name = "Tầm tấn công tối đa",
-   Range = {10, 200},
-   Increment = 5,
-   Suffix = "studs",
-   CurrentValue = 50,
-   Flag = "MaxRange",
-   Callback = function(Value)
-       _G.MaxAttackRange = Value
-   end
-})
-
--- Section Loại tấn công
-local AttackTypeSection = FastAttackTab:CreateSection("Loại tấn công")
-
--- Dropdown chọn loại tấn công
-local AttackTypeDropdown = FastAttackTab:CreateDropdown({
-   Name = "Chọn loại tấn công",
-   Options = {"Melee", "Sword", "Gun", "Blox Fruit"},
-   CurrentOption = {"Melee"},
-   Multiple = false,
-   Flag = "AttackType",
-   Callback = function(Option)
-       _G.SelectedAttackType = Option[1]
-   end
-})
-
--- Section Bypass & Anti-Cheat
-local BypassSection = FastAttackTab:CreateSection("Bypass Anti-Cheat")
-
--- Toggle Bypass Detection
-local BypassDetectionToggle = FastAttackTab:CreateToggle({
-   Name = "Bypass Anti-Cheat Detection",
-   CurrentValue = true,
-   Flag = "BypassDetection",
-   Callback = function(Value)
-       _G.BypassDetection = Value
-       if _G.BypassDetection then
+           
+           -- Luồng 3: Tự động nhặt đồ
            spawn(function()
-               while _G.BypassDetection do
-                   pcall(function()
-                       -- Vô hiệu hóa các module chống cheat
-                       local antiCheatModules = {
-                           "Kick",
-                           "Ban", 
-                           "Detect",
-                           "AntiCheat",
-                           "CheatDetection",
-                           "AntiExploit"
-                       }
-                       
-                       -- Tìm và vô hiệu hóa các module chống cheat
-                       for _, moduleName in pairs(antiCheatModules) do
-                           pcall(function()
-                               -- Quét qua các service
-                               for _, service in pairs(game:GetChildren()) do
-                                   if service:FindFirstChild(moduleName) then
-                                       service[moduleName]:Destroy()
+               while _G.MasterAutoFarm do
+                   if _G.AutoCollectLoot then
+                       pcall(function()
+                           local player = game.Players.LocalPlayer
+                           local character = player.Character
+                           if character then
+                               local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                               if humanoidRootPart then
+                                   for _, item in pairs(game.Workspace:GetChildren()) do
+                                       if item:IsA("Tool") or item.Name:lower():find("drop") or item.Name:lower():find("chest") then
+                                           local distance = (humanoidRootPart.Position - item.Position).Magnitude
+                                           if distance <= 50 then
+                                               firetouchinterest(item, humanoidRootPart, 0)
+                                               firetouchinterest(item, humanoidRootPart, 1)
+                                           end
+                                       end
                                    end
                                end
-                               
-                               -- Quét qua replicated storage
-                               if game:GetService("ReplicatedStorage"):FindFirstChild(moduleName) then
-                                   game:GetService("ReplicatedStorage")[moduleName]:Destroy()
-                               end
-                               
-                               -- Quét qua server storage
-                               if game:GetService("ServerStorage"):FindFirstChild(moduleName) then
-                                   game:GetService("ServerStorage")[moduleName]:Destroy()
-                               end
-                           end)
-                       end
-                       
-                       -- Vô hiệu hóa script kick
-                       local player = game.Players.LocalPlayer
-                       local oldKick = player.Kick
-                       player.Kick = function() end
-                       
-                       -- Bảo vệ khỏi bị kick bởi remote events
-                       local remoteConnections = {}
-                       for _, remote in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-                           if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-                               if remote.Name:lower():find("kick") or remote.Name:lower():find("ban") then
-                                   remote:Destroy()
-                               end
                            end
-                       end
-                   end)
-                   wait(1)
+                       end)
+                   end
+                   wait(0.1)
                end
            end)
-       end
-   end
-})
-
--- Toggle Auto Reconnect
-local AutoReconnectToggle = FastAttackTab:CreateToggle({
-   Name = "Tự động kết nối lại nếu bị kick",
-   CurrentValue = true,
-   Flag = "AutoReconnect",
-   Callback = function(Value)
-       _G.AutoReconnect = Value
-       if _G.AutoReconnect then
+           
+       else
+           -- KHI TẮT: Dọn dẹp tất cả
            spawn(function()
-               game.Players.LocalPlayer.OnTeleport:Connect(function(State)
-                   if State == Enum.TeleportState.Started then
-                       wait(2)
-                       pcall(function()
-                           -- Tự động join lại server
-                           game:GetService("TeleportService"):Teleport(game.PlaceId)
-                       end)
+               pcall(function()
+                   local player = game.Players.LocalPlayer
+                   local character = player.Character
+                   if character then
+                       local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                       if humanoidRootPart then
+                           -- Xóa fly components
+                           if humanoidRootPart:FindFirstChild("FlyVelocity") then
+                               humanoidRootPart.FlyVelocity:Destroy()
+                           end
+                           if humanoidRootPart:FindFirstChild("FlyGyro") then
+                               humanoidRootPart.FlyGyro:Destroy()
+                           end
+                       end
+                       
+                       -- Khôi phục humanoid state
+                       local humanoid = character:FindFirstChild("Humanoid")
+                       if humanoid then
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Landed, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+                           humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, true)
+                       end
+                   end
+                   
+                   -- Dọn dẹp tất cả BodyVelocity của quái
+                   for _, enemy in pairs(game.Workspace.Enemies:GetChildren()) do
+                       if enemy:FindFirstChild("HumanoidRootPart") then
+                           if enemy.HumanoidRootPart:FindFirstChild("PullVelocity") then
+                               enemy.HumanoidRootPart.PullVelocity:Destroy()
+                           end
+                           enemy.HumanoidRootPart.Anchored = false
+                           enemy.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                       end
+                       if enemy:FindFirstChild("Humanoid") then
+                           enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+                           enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
+                           enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                           enemy.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+                           enemy.Humanoid.WalkSpeed = 16
+                           enemy.Humanoid.JumpPower = 50
+                       end
                    end
                end)
            end)
@@ -440,70 +580,47 @@ local AutoReconnectToggle = FastAttackTab:CreateToggle({
    end
 })
 
--- Section Tiện ích bổ sung
-local ExtraSection = FastAttackTab:CreateSection("Tiện ích bổ sung")
+-- Section Trạng thái
+local StatusSection = AutoFarmTab:CreateSection("Trạng thái hiện tại")
 
--- Toggle tấn công tất cả quái trong phạm vi
-local HitAllToggle = FastAttackTab:CreateToggle({
-   Name = "Đánh tất cả quái trong phạm vi",
-   CurrentValue = true,
-   Flag = "HitAllEnemies",
-   Callback = function(Value)
-       _G.HitAllEnemies = Value
-   end
-})
-
--- Toggle tự động nhặt đồ
-local AutoCollectToggle = FastAttackTab:CreateToggle({
-   Name = "Tự động nhặt đồ sau khi giết quái",
-   CurrentValue = false,
-   Flag = "AutoCollect",
-   Callback = function(Value)
-       _G.AutoCollect = Value
-       if _G.AutoCollect then
-           spawn(function()
-               while _G.AutoCollect do
-                   pcall(function()
-                       local player = game.Players.LocalPlayer
-                       local character = player.Character
-                       if character then
-                           local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                           if humanoidRootPart then
-                               -- Quét và nhặt tất cả đồ rơi
-                               for _, item in pairs(game.Workspace:GetChildren()) do
-                                   if item:IsA("Tool") or item.Name:lower():find("drop") or item.Name:lower():find("chest") then
-                                       local distance = (humanoidRootPart.Position - item.Position).Magnitude
-                                       if distance <= 50 then
-                                           -- Dịch chuyển đồ về người chơi
-                                           firetouchinterest(item, humanoidRootPart, 0)
-                                           firetouchinterest(item, humanoidRootPart, 1)
-                                       end
-                                   end
-                               end
-                           end
-                       end
-                   end)
-                   wait(0.1)
-               end
-           end)
-       end
+-- Nút kiểm tra trạng thái
+local CheckStatusButton = AutoFarmTab:CreateButton({
+   Name = "Kiểm tra trạng thái Auto Farm",
+   Callback = function()
+       local status = "Auto Farm Tổng Hợp: " .. tostring(_G.MasterAutoFarm and "ĐANG CHẠY" or "ĐÃ TẮT") .. "\n"
+       status = status .. "Bay trên đầu quái: " .. tostring(_G.MasterAutoFarm and "✔️" or "❌") .. "\n"
+       status = status .. "Fast Attack No Anim: " .. tostring(_G.MasterAutoFarm and "✔️" or "❌") .. "\n"
+       status = status .. "Bring Mob: " .. tostring(_G.MasterAutoFarm and "✔️" or "❌") .. "\n"
+       status = status .. "Tầm đánh: " .. tostring(_G.AttackRangeMultiplier or 5) .. "x\n"
+       status = status .. "Tốc độ đánh: " .. tostring(_G.AttackSpeedDelay or 0.001) .. "s\n"
+       status = status .. "Bán kính farm: " .. tostring(_G.FarmRadius or 300) .. " Studs\n"
+       status = status .. "Độ cao bay: " .. tostring(_G.FlyHeightOffset or 15) .. " Studs"
+       
+       local Notification = loadstring(game:HttpGet("https://api.voidscripts.com/UI/Notify.lua"))()
+       Notification.new("info", status, 8)
    end
 })
 
 -- Nút dừng khẩn cấp
-local EmergencyStopButton = FastAttackTab:CreateButton({
-   Name = "DỪNG KHẨN CẤP",
+local EmergencyStopButton = AutoFarmTab:CreateButton({
+   Name = "🛑 DỪNG KHẨN CẤP TẤT CẢ",
    Callback = function()
-       _G.FastAttackNoAnim = false
-       _G.BypassDetection = false
-       _G.AutoCollect = false
+       _G.MasterAutoFarm = false
        pcall(function()
            local player = game.Players.LocalPlayer
            local character = player.Character
            if character then
+               local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+               if humanoidRootPart then
+                   if humanoidRootPart:FindFirstChild("FlyVelocity") then
+                       humanoidRootPart.FlyVelocity:Destroy()
+                   end
+                   if humanoidRootPart:FindFirstChild("FlyGyro") then
+                       humanoidRootPart.FlyGyro:Destroy()
+                   end
+               end
                local humanoid = character:FindFirstChild("Humanoid")
                if humanoid then
-                   -- Khôi phục tất cả state
                    humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
                    humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, true)
                    humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
@@ -516,16 +633,19 @@ local EmergencyStopButton = FastAttackTab:CreateButton({
                    humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
                    humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
                    humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, true)
-                   
-                   -- Xóa tất cả hitbox ảo
-                   for _, obj in pairs(character:GetDescendants()) do
-                       if obj.Name == "FastAttackHitbox" then
-                           obj:Destroy()
-                       end
+               end
+           end
+           for _, enemy in pairs(game.Workspace.Enemies:GetChildren()) do
+               if enemy:FindFirstChild("HumanoidRootPart") then
+                   if enemy.HumanoidRootPart:FindFirstChild("PullVelocity") then
+                       enemy.HumanoidRootPart.PullVelocity:Destroy()
                    end
+                   enemy.HumanoidRootPart.Anchored = false
                end
            end
        end)
+       local Notification = loadstring(game:HttpGet("https://api.voidscripts.com/UI/Notify.lua"))()
+       Notification.new("warning", "Đã dừng tất cả Auto Farm!", 3)
    end
 })
 
@@ -534,7 +654,13 @@ Rayfield:LoadConfiguration()
 
 -- Thông báo hoàn tất
 local Notification = loadstring(game:HttpGet("https://api.voidscripts.com/UI/Notify.lua"))()
-Notification.new("success", "Fast Attack No Animation đã được thêm vào Banana Hub!", 5)
+Notification.new("success", "Banana Hub - Auto Farm Tổng Hợp đã sẵn sàng!", 5)
 
-print("Banana Hub - Fast Attack No Animation Extension by palofsc đã sẵn sàng!")
-print("Tính năng: Tấn công cực nhanh + Không animation + Tăng hitbox + Bypass anti-cheat") 
+print("========================================")
+print("  BANANA HUB - AUTO FARM TỔNG HỢP")
+print("  Bay + No Animation + Bring Mob")
+print("  Tất cả trong MỘT NÚT duy nhất!")
+print("  by palofsc")
+print("========================================")
+print("Hướng dẫn: Chỉ cần bật 'AUTO FARM TỔNG HỢP'")
+print("Tất cả tính năng sẽ tự động kích hoạt!") 
